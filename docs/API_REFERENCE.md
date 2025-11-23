@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for the KB-Proto Testing Pipeline API.
+Complete reference for the RAG Testing Testing Pipeline API.
 
 **Base URL**: `http://localhost:8000`
 

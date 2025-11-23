@@ -1,4 +1,4 @@
-# KB-Proto: Knowledge Base Testing Pipeline
+# RAG Testing: Knowledge Base Testing Pipeline
 
 A comprehensive testing pipeline for evaluating and comparing knowledge embedding and search systems across multiple providers (local, GCP, Azure).
 
@@ -39,7 +39,7 @@ With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
 ```bash
 # 1. Clone and setup
 git clone <repo-url>
-cd kb-proto
+cd rag-testing
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -54,7 +54,7 @@ docker-compose up -d
 python scripts/init_database.py
 
 # 5. Pull Ollama model
-docker exec -it kb-proto-ollama ollama pull llama3.2
+docker exec -it rag-testing-ollama ollama pull llama3.2
 
 # 6. Start API server
 uvicorn api.main:app --reload --port 8000
@@ -205,7 +205,7 @@ AZURE_OPENAI_MODEL=gpt-4o
 ## 📁 Project Structure
 
 ```
-kb-proto/
+rag-testing/
 ├── api/                    # FastAPI application
 │   ├── main.py            # API entry point
 │   ├── routers/           # API endpoints
@@ -357,8 +357,8 @@ python scripts/reset_database.py
 
 ### Ollama model not found
 ```bash
-docker exec kb-proto-ollama ollama list
-docker exec kb-proto-ollama ollama pull llama3.2
+docker exec rag-testing-ollama ollama list
+docker exec rag-testing-ollama ollama pull llama3.2
 ```
 
 ### Database connection failed
@@ -379,7 +379,7 @@ This project is based on the proven architecture from [kb-search](../kb-search),
 - Source management and tracking
 - Streamlit UI for end-users
 
-**Key Difference**: kb-proto focuses on **testing and comparison** (headless API), while kb-search is designed for **production use** (with UI).
+**Key Difference**: rag-testing focuses on **testing and comparison** (headless API), while kb-search is designed for **production use** (with UI).
 
 ---
 

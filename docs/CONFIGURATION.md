@@ -1,6 +1,6 @@
 # Configuration Guide
 
-Complete configuration reference for the KB-Proto testing pipeline.
+Complete configuration reference for the RAG Testing testing pipeline.
 
 ---
 
@@ -72,7 +72,7 @@ CHUNK_STRATEGY=recursive
 MAX_PAGES_PER_INGEST=100
 MAX_CRAWL_DEPTH=3
 SCRAPE_TIMEOUT_SECONDS=30
-USER_AGENT=KB-Proto/1.0
+USER_AGENT=RAG Testing/1.0
 
 # Cost Tracking
 TRACK_COSTS=true
@@ -225,7 +225,7 @@ services:
   # Elasticsearch (Vector Store)
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: kb-proto-elasticsearch
+    container_name: rag-testing-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -243,7 +243,7 @@ services:
   # PostgreSQL (Metrics & Feedback)
   postgres:
     image: postgres:15-alpine
-    container_name: kb-proto-postgres
+    container_name: rag-testing-postgres
     environment:
       POSTGRES_DB: kb_metrics
       POSTGRES_USER: kbuser
@@ -262,7 +262,7 @@ services:
   # Ollama (Local LLM)
   ollama:
     image: ollama/ollama:latest
-    container_name: kb-proto-ollama
+    container_name: rag-testing-ollama
     ports:
       - "11434:11434"
     volumes:
@@ -278,7 +278,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kb-proto-api
+    container_name: rag-testing-api
     ports:
       - "8000:8000"
     environment:
@@ -330,7 +330,7 @@ docker-compose down -v
 ```bash
 # 1. Clone repository
 git clone <repo-url>
-cd kb-proto
+cd rag-testing
 
 # 2. Create virtual environment
 python3 -m venv venv
@@ -352,7 +352,7 @@ docker-compose up -d elasticsearch postgres ollama
 python scripts/init_database.py
 
 # 8. Pull Ollama model
-docker exec -it kb-proto-ollama ollama pull llama3.2
+docker exec -it rag-testing-ollama ollama pull llama3.2
 
 # 9. Start API server
 uvicorn api.main:app --reload --port 8000
@@ -422,17 +422,17 @@ export GCP_PROJECT=your-project-id
 export GCP_REGION=us-central1
 
 # 3. Create service account (if needed)
-gcloud iam service-accounts create kb-proto-sa \
-    --display-name="KB Proto Service Account"
+gcloud iam service-accounts create rag-testing-sa \
+    --display-name="RAG Testing Service Account"
 
 # 4. Grant permissions
 gcloud projects add-iam-policy-binding $GCP_PROJECT \
-    --member="serviceAccount:kb-proto-sa@$GCP_PROJECT.iam.gserviceaccount.com" \
+    --member="serviceAccount:rag-testing-sa@$GCP_PROJECT.iam.gserviceaccount.com" \
     --role="roles/aiplatform.user"
 
 # 5. Create key
 gcloud iam service-accounts keys create ./credentials/gcp-key.json \
-    --iam-account=kb-proto-sa@$GCP_PROJECT.iam.gserviceaccount.com
+    --iam-account=rag-testing-sa@$GCP_PROJECT.iam.gserviceaccount.com
 
 # 6. Set environment variable
 export GOOGLE_APPLICATION_CREDENTIALS=./credentials/gcp-key.json
@@ -452,7 +452,7 @@ GOOGLE_APPLICATION_CREDENTIALS=./credentials/gcp-key.json
 ```bash
 # 1. Create Azure OpenAI resource
 az cognitiveservices account create \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group \
     --kind OpenAI \
     --sku S0 \
@@ -460,18 +460,18 @@ az cognitiveservices account create \
 
 # 2. Get endpoint and key
 az cognitiveservices account show \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group \
     --query "properties.endpoint" -o tsv
 
 az cognitiveservices account keys list \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group \
     --query "key1" -o tsv
 
 # 3. Deploy models
 az cognitiveservices account deployment create \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group \
     --deployment-name text-embedding-3-large \
     --model-name text-embedding-3-large \
@@ -481,7 +481,7 @@ az cognitiveservices account deployment create \
     --sku-capacity 1
 
 az cognitiveservices account deployment create \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group \
     --deployment-name gpt-4o \
     --model-name gpt-4o \
@@ -493,7 +493,7 @@ az cognitiveservices account deployment create \
 
 **Add to .env**:
 ```env
-AZURE_OPENAI_ENDPOINT=https://kb-proto-openai.openai.azure.com
+AZURE_OPENAI_ENDPOINT=https://rag-testing-openai.openai.azure.com
 AZURE_OPENAI_KEY=your-key
 AZURE_EMBEDDING_DEPLOYMENT=text-embedding-3-large
 AZURE_LLM_DEPLOYMENT=gpt-4o
@@ -631,7 +631,7 @@ RATE_LIMITS = {
 **Problem**: Elasticsearch won't start
 ```bash
 # Check logs
-docker logs kb-proto-elasticsearch
+docker logs rag-testing-elasticsearch
 
 # Common issue: Not enough memory
 # Solution: Increase Docker memory limit or reduce ES heap size
@@ -655,13 +655,13 @@ docker-compose restart elasticsearch
 **Problem**: Ollama model not found
 ```bash
 # List available models
-docker exec kb-proto-ollama ollama list
+docker exec rag-testing-ollama ollama list
 
 # Pull required model
-docker exec kb-proto-ollama ollama pull llama3.2
+docker exec rag-testing-ollama ollama pull llama3.2
 
 # Check Ollama logs
-docker logs kb-proto-ollama
+docker logs rag-testing-ollama
 ```
 
 **Problem**: Ollama responses are slow
@@ -682,10 +682,10 @@ ollama:
 **Problem**: Database connection failed
 ```bash
 # Check if running
-docker exec kb-proto-postgres pg_isready -U kbuser
+docker exec rag-testing-postgres pg_isready -U kbuser
 
 # Connect to database
-docker exec -it kb-proto-postgres psql -U kbuser -d kb_metrics
+docker exec -it rag-testing-postgres psql -U kbuser -d kb_metrics
 
 # Verify tables exist
 \dt
@@ -726,7 +726,7 @@ gcloud compute project-info describe --project=YOUR_PROJECT
 ```bash
 # List deployments
 az cognitiveservices account deployment list \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group
 
 # Verify deployment name matches .env
@@ -736,7 +736,7 @@ az cognitiveservices account deployment list \
 ```bash
 # Check deployment scale
 az cognitiveservices account deployment show \
-    --name kb-proto-openai \
+    --name rag-testing-openai \
     --resource-group your-resource-group \
     --deployment-name gpt-4o
 

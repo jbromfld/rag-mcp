@@ -1,6 +1,6 @@
 # System Architecture
 
-Technical architecture documentation for the KB-Proto testing pipeline.
+Technical architecture documentation for the RAG Testing testing pipeline.
 
 ---
 
@@ -18,7 +18,7 @@ Technical architecture documentation for the KB-Proto testing pipeline.
 
 ## System Overview
 
-KB-Proto is a headless testing pipeline designed to systematically evaluate and compare different knowledge embedding and search configurations. The system is built on a modular, provider-agnostic architecture that allows easy switching between local and cloud services.
+RAG Testing is a headless testing pipeline designed to systematically evaluate and compare different knowledge embedding and search configurations. The system is built on a modular, provider-agnostic architecture that allows easy switching between local and cloud services.
 
 **Core Principles**:
 1. **Provider Abstraction**: Uniform interfaces for all external services
@@ -541,7 +541,7 @@ REFRESH MATERIALIZED VIEW metrics_daily;
 
 ```
 Host Machine
-├── Docker Network: kb-proto
+├── Docker Network: rag-testing
 │   ├── Elasticsearch (port 9200)
 │   ├── PostgreSQL (port 5432)
 │   └── Ollama (port 11434)
@@ -561,7 +561,7 @@ Host Machine
 
 ```
 Host Machine
-├── Docker Network: kb-proto
+├── Docker Network: rag-testing
 │   ├── Elasticsearch (port 9200) [Local]
 │   └── PostgreSQL (port 5432) [Local]
 └── Python Virtual Environment
