@@ -433,17 +433,72 @@ class LLMProvider(ABC):
 ### PostgreSQL Schema
 
 ```sql
--- Queries table
+-- Configuration profiles table
+CREATE TABLE configuration_profiles (
+    profile_id UUID PRIMARY KEY,
+    profile_name VARCHAR(100) UNIQUE NOT NULL,
+    version VARCHAR(20) NOT NULL,
+    parent_profile_id UUID REFERENCES configuration_profiles(profile_id),
+    description TEXT,
+
+    -- Complete configuration as JSONB
+    provider_config JSONB NOT NULL,
+    chunking_config JSONB NOT NULL,
+    retrieval_config JSONB NOT NULL,
+    generation_config JSONB NOT NULL,
+    system_config JSONB NOT NULL,
+
+    -- Metadata
+    is_active BOOLEAN DEFAULT true,
+    created_by VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Indexes
+    INDEX idx_profile_name (profile_name),
+    INDEX idx_profile_active (is_active),
+    INDEX idx_profile_created (created_at)
+);
+
+-- Configuration change log
+CREATE TABLE configuration_changes (
+    change_id UUID PRIMARY KEY,
+    profile_id UUID REFERENCES configuration_profiles(profile_id),
+    version_from VARCHAR(20),
+    version_to VARCHAR(20),
+
+    -- What changed
+    parameter_path VARCHAR(200) NOT NULL,
+    old_value JSONB,
+    new_value JSONB,
+
+    -- Why and when
+    reason TEXT,
+    changed_by VARCHAR(100),
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Impact (populated after analysis)
+    performance_impact JSONB,
+
+    -- Indexes
+    INDEX idx_changes_profile (profile_id),
+    INDEX idx_changes_parameter (parameter_path),
+    INDEX idx_changes_date (changed_at)
+);
+
+-- Queries table (updated with configuration tracking)
 CREATE TABLE queries (
     query_id UUID PRIMARY KEY,
     query_text TEXT NOT NULL,
-    provider_config JSONB NOT NULL,
+    profile_id UUID REFERENCES configuration_profiles(profile_id),
+    config_snapshot JSONB NOT NULL,  -- Complete config at query time
     response JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     -- Indexes
     INDEX idx_queries_created_at (created_at),
-    INDEX idx_queries_provider ((provider_config->>'provider'))
+    INDEX idx_queries_profile (profile_id),
+    INDEX idx_queries_config_hash ((config_snapshot->>'hash'))
 );
 
 -- Feedback table
@@ -512,7 +567,50 @@ CREATE TABLE ingestion_jobs (
     INDEX idx_ingestion_jobs_started_at (started_at)
 );
 
--- Aggregated metrics view
+-- Aggregated metrics by configuration view
+CREATE MATERIALIZED VIEW metrics_by_config AS
+SELECT
+    cp.profile_name,
+    cp.version,
+    DATE(q.created_at) as date,
+
+    -- Provider info
+    (cp.provider_config->'embedding'->>'model') as embedding_model,
+    (cp.provider_config->'embedding'->>'dimension')::int as embedding_dimension,
+    (cp.provider_config->'llm'->>'model') as llm_model,
+    (cp.provider_config->'llm'->>'temperature')::float as llm_temperature,
+
+    -- Chunking info
+    (cp.chunking_config->>'chunk_size')::int as chunk_size,
+    (cp.chunking_config->>'chunk_overlap')::int as chunk_overlap,
+
+    -- Retrieval info
+    (cp.retrieval_config->>'top_k')::int as top_k,
+    (cp.retrieval_config->>'vector_weight')::float as vector_weight,
+
+    -- Aggregated metrics
+    COUNT(*) as total_queries,
+    AVG(m.latency_total_ms) as avg_latency_ms,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY m.latency_total_ms) as p95_latency_ms,
+    AVG(m.cost_total_usd) as avg_cost_usd,
+    AVG(m.top_relevance_score) as avg_relevance_score,
+
+    -- User satisfaction
+    COUNT(CASE WHEN f.rating = 'thumbs_up' THEN 1 END)::float / NULLIF(COUNT(f.rating), 0) as satisfaction_rate
+
+FROM queries q
+JOIN configuration_profiles cp ON q.profile_id = cp.profile_id
+JOIN metrics m ON q.query_id = m.query_id
+LEFT JOIN feedback f ON q.query_id = f.query_id
+GROUP BY
+    cp.profile_name, cp.version, date,
+    embedding_model, embedding_dimension, llm_model, llm_temperature,
+    chunk_size, chunk_overlap, top_k, vector_weight;
+
+-- Refresh materialized view (run nightly via cron)
+-- 0 1 * * * psql -c "REFRESH MATERIALIZED VIEW metrics_by_config;"
+
+-- Aggregated metrics view (legacy/daily summary)
 CREATE MATERIALIZED VIEW metrics_daily AS
 SELECT
     DATE(created_at) as date,

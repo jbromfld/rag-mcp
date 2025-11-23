@@ -248,6 +248,8 @@ rag-testing/
 | [API_REFERENCE.md](docs/API_REFERENCE.md) | Full API documentation with examples |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Testing approach, benchmarks, and evaluation |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Configuration guide for all providers |
+| [CONFIGURATION_TRACKING.md](docs/CONFIGURATION_TRACKING.md) | Configuration versioning, tracking, and drift detection |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture and database schema |
 
 ---
 
