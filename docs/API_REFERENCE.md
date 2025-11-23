@@ -308,9 +308,7 @@ Submit feedback for a query result.
 ```json
 {
   "query_id": "770e8400-e29b-41d4-a716-446655440000",
-  "rating": "thumbs_up",
-  "relevance_score": 5,
-  "accuracy_score": 4,
+  "score": 8,
   "comment": "Very helpful! Exactly what I needed.",
   "metadata": {
     "user_id": "user123",
@@ -324,11 +322,16 @@ Submit feedback for a query result.
 | Field | Type | Required | Options | Description |
 |-------|------|----------|---------|-------------|
 | `query_id` | string (UUID) | Yes | - | Query ID to provide feedback for |
-| `rating` | string | Yes | `thumbs_up`, `thumbs_down`, `neutral` | Simple rating |
-| `relevance_score` | integer | No | 1-5 | Relevance rating (1=not relevant, 5=very relevant) |
-| `accuracy_score` | integer | No | 1-5 | Accuracy rating (1=inaccurate, 5=accurate) |
+| `score` | integer | Yes | 0-10 | Quality score (0=completely wrong, 5=acceptable, 10=perfect) |
 | `comment` | string | No | - | Optional text feedback |
 | `metadata` | object | No | - | Additional context (user_id, session_id, etc.) |
+
+**Score Guidelines**:
+- **0-2**: Completely wrong or unhelpful
+- **3-4**: Partially correct but missing key information
+- **5-6**: Acceptable but could be better
+- **7-8**: Good, helpful response
+- **9-10**: Excellent, exactly what was needed
 
 **Response**:
 ```json
@@ -361,24 +364,29 @@ Get aggregated feedback statistics.
 {
   "summary": {
     "total_feedback": 150,
-    "thumbs_up": 120,
-    "thumbs_down": 30,
-    "satisfaction_rate": 0.80,
-    "avg_relevance_score": 4.2,
-    "avg_accuracy_score": 4.0
+    "avg_score": 7.2,
+    "median_score": 8,
+    "score_distribution": {
+      "0-2": 5,
+      "3-4": 10,
+      "5-6": 25,
+      "7-8": 60,
+      "9-10": 50
+    },
+    "satisfaction_rate": 0.73
   },
   "by_provider": {
     "elasticsearch-local-ollama": {
       "total": 80,
-      "thumbs_up": 70,
-      "thumbs_down": 10,
-      "satisfaction_rate": 0.875
+      "avg_score": 7.5,
+      "median_score": 8,
+      "satisfaction_rate": 0.78
     },
     "vertex-full": {
       "total": 70,
-      "thumbs_up": 50,
-      "thumbs_down": 20,
-      "satisfaction_rate": 0.714
+      "avg_score": 6.8,
+      "median_score": 7,
+      "satisfaction_rate": 0.67
     }
   },
   "period": {

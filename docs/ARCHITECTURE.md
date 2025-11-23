@@ -505,18 +505,23 @@ CREATE TABLE queries (
 CREATE TABLE feedback (
     feedback_id UUID PRIMARY KEY,
     query_id UUID REFERENCES queries(query_id),
-    rating VARCHAR(20) NOT NULL CHECK (rating IN ('thumbs_up', 'thumbs_down', 'neutral')),
-    relevance_score INT CHECK (relevance_score BETWEEN 1 AND 5),
-    accuracy_score INT CHECK (accuracy_score BETWEEN 1 AND 5),
+    score INT NOT NULL CHECK (score BETWEEN 0 AND 10),
     comment TEXT,
     metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     -- Indexes
     INDEX idx_feedback_query_id (query_id),
-    INDEX idx_feedback_rating (rating),
+    INDEX idx_feedback_score (score),
     INDEX idx_feedback_created_at (created_at)
 );
+
+-- Score interpretation:
+-- 0-2: Completely wrong/unhelpful
+-- 3-4: Partially correct but missing key information
+-- 5-6: Acceptable but could be better
+-- 7-8: Good, helpful response
+-- 9-10: Excellent, exactly what was needed
 
 -- Metrics table
 CREATE TABLE metrics (
@@ -595,8 +600,10 @@ SELECT
     AVG(m.cost_total_usd) as avg_cost_usd,
     AVG(m.top_relevance_score) as avg_relevance_score,
 
-    -- User satisfaction
-    COUNT(CASE WHEN f.rating = 'thumbs_up' THEN 1 END)::float / NULLIF(COUNT(f.rating), 0) as satisfaction_rate
+    -- User satisfaction (score 7+ is considered satisfied)
+    AVG(f.score) as avg_feedback_score,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY f.score) as median_feedback_score,
+    COUNT(CASE WHEN f.score >= 7 THEN 1 END)::float / NULLIF(COUNT(f.score), 0) as satisfaction_rate
 
 FROM queries q
 JOIN configuration_profiles cp ON q.profile_id = cp.profile_id

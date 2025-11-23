@@ -20,7 +20,7 @@ With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
 - 🔄 **Side-by-Side Comparison**: Test multiple configurations simultaneously
 - 💰 **Cost Tracking**: Per-query cost analysis across providers
 - 🎯 **Hybrid Search**: Combine vector (semantic) + keyword (BM25) search
-- 📝 **Feedback System**: Thumbs up/down + detailed scoring
+- 📝 **Feedback System**: 0-10 scoring with detailed analytics
 - 🧪 **Automated Testing**: Reproducible benchmark suites
 - 🚀 **FastAPI**: High-performance async API
 
@@ -146,8 +146,7 @@ curl -X POST http://localhost:8000/feedback \
   -H "Content-Type: application/json" \
   -d '{
     "query_id": "550e8400-e29b-41d4-a716-446655440000",
-    "rating": "thumbs_up",
-    "relevance_score": 5,
+    "score": 8,
     "comment": "Very helpful!"
   }'
 ```
@@ -250,6 +249,8 @@ rag-testing/
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Configuration guide for all providers |
 | [CONFIGURATION_TRACKING.md](docs/CONFIGURATION_TRACKING.md) | Configuration versioning, tracking, and drift detection |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture and database schema |
+| [PARAMETER_REFERENCE.md](docs/PARAMETER_REFERENCE.md) | Quick reference for all trackable parameters |
+| [DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md) | Key architectural and implementation decisions |
 
 ---
 
