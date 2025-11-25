@@ -251,6 +251,7 @@ rag-testing/
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture and database schema |
 | [PARAMETER_REFERENCE.md](docs/PARAMETER_REFERENCE.md) | Quick reference for all trackable parameters |
 | [DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md) | Key architectural and implementation decisions |
+| [METADATA_STRATEGY.md](docs/METADATA_STRATEGY.md) | Metadata tracking, source attribution, and quality boosting |
 
 ---
 

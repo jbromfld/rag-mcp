@@ -215,14 +215,31 @@ Query the knowledge base with optional provider selection.
 {
   "query_id": "770e8400-e29b-41d4-a716-446655440000",
   "query": "How do I create a virtual environment in Python?",
-  "answer": "To create a virtual environment in Python, use the `venv` module:\n\n```bash\npython3 -m venv myenv\nsource myenv/bin/activate  # On Unix/macOS\nmyenv\\Scripts\\activate     # On Windows\n```\n\nThis creates an isolated Python environment in the `myenv` directory.",
+  "answer": "To create a virtual environment in Python, use the `venv` module[1]:\n\n```bash\npython3 -m venv myenv\nsource myenv/bin/activate  # On Unix/macOS\nmyenv\\Scripts\\activate     # On Windows\n```\n\nThis creates an isolated Python environment in the `myenv` directory[1]. Virtual environments help manage dependencies and avoid conflicts between projects[2].",
   "sources": [
     {
       "title": "Virtual Environments - Python Documentation",
       "url": "https://docs.python.org/3/tutorial/venv.html",
-      "content": "A virtual environment is a self-contained directory tree...",
+      "section": "Tutorial > Virtual Environments",
+      "snippet": "A virtual environment is a self-contained directory tree...",
       "score": 0.92,
-      "chunk_id": "chunk_12345"
+      "rank": 1,
+      "chunk_id": "chunk_12345",
+      "last_modified": "2025-10-15T08:30:00Z",
+      "feedback_score": 8.5,
+      "citation": "[1]"
+    },
+    {
+      "title": "Installing Packages - Python Documentation",
+      "url": "https://docs.python.org/3/installing/index.html",
+      "section": "Installing Packages > Using Virtual Environments",
+      "snippet": "It is recommended to use virtual environments to avoid...",
+      "score": 0.87,
+      "rank": 2,
+      "chunk_id": "chunk_67890",
+      "last_modified": "2025-09-20T14:15:00Z",
+      "feedback_score": 7.8,
+      "citation": "[2]"
     }
   ],
   "metadata": {
