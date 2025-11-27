@@ -5,7 +5,7 @@ A comprehensive testing pipeline for evaluating and comparing knowledge embeddin
 ## 🎯 Project Goal
 
 Build a headless testing framework to systematically compare:
-- **Vector Stores**: Elasticsearch (local), GCP Vertex AI, Azure Cognitive Search
+- **Vector Stores**: PostgreSQL (pgvector), Elasticsearch, GCP Vertex AI, Azure Cognitive Search
 - **Embedding Models**: Local (sentence-transformers), GCP Vertex, Azure OpenAI
 - **LLMs**: Ollama (local), GCP Vertex AI (Gemini), Azure OpenAI (GPT-4)
 
@@ -165,7 +165,7 @@ curl http://localhost:8000/metrics/compare
 
 ## 📊 Provider Configurations
 
-### Local (Zero Cost)
+### Local with Elasticsearch (Zero Cost)
 
 ```env
 VECTOR_STORE=elasticsearch
@@ -174,6 +174,20 @@ EMBEDDING_MODEL=all-mpnet-base-v2
 LLM_PROVIDER=ollama
 OLLAMA_MODEL=llama3.2
 ```
+
+### Local with pgvector (Zero Cost, Simpler)
+
+```env
+VECTOR_STORE=postgres
+POSTGRES_URL=postgresql://kbuser:kbpass@localhost:5432/kb_metrics
+EMBEDDING_PROVIDER=local
+EMBEDDING_MODEL=all-mpnet-base-v2
+EMBEDDING_DIMENSION=768
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2
+```
+
+**Recommended**: pgvector consolidates metrics + vectors in one database!
 
 ### GCP Vertex AI
 
@@ -198,6 +212,23 @@ EMBEDDING_MODEL=text-embedding-3-large
 LLM_PROVIDER=azure
 AZURE_OPENAI_MODEL=gpt-4o
 ```
+
+---
+
+## 🔍 Vector Store Comparison
+
+| Feature | pgvector (PostgreSQL) | Elasticsearch |
+|---------|----------------------|---------------|
+| **Setup** | ✅ Very Simple | ⚠️ Additional service |
+| **Cost** | ✅ Zero (use existing DB) | ⚠️ Separate cluster |
+| **Performance (<1M)** | ✅ Excellent (20-50ms) | ✅ Excellent (10-40ms) |
+| **Performance (>1M)** | ⚠️ Good | ✅ Excellent |
+| **Hybrid Search** | ✅ Native (tsvector + vector) | ✅ Native (BM25 + vector) |
+| **ACID Transactions** | ✅ Yes | ❌ Eventual consistency |
+| **Operational Overhead** | ✅ Low (one DB) | ⚠️ Medium (two systems) |
+| **Recall@10** | ✅ 0.95-0.98 | ✅ 0.96-0.99 |
+
+**Recommendation**: Start with **pgvector** for simplicity. Compare both empirically!
 
 ---
 
@@ -252,6 +283,7 @@ rag-testing/
 | [PARAMETER_REFERENCE.md](docs/PARAMETER_REFERENCE.md) | Quick reference for all trackable parameters |
 | [DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md) | Key architectural and implementation decisions |
 | [METADATA_STRATEGY.md](docs/METADATA_STRATEGY.md) | Metadata tracking, source attribution, and quality boosting |
+| [PGVECTOR_IMPLEMENTATION.md](docs/PGVECTOR_IMPLEMENTATION.md) | PostgreSQL + pgvector as consolidated vector store |
 
 ---
 
