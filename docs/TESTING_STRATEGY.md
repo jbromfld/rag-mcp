@@ -1,6 +1,6 @@
 # Testing Strategy
 
-Comprehensive testing and evaluation strategy for the KB-Proto testing pipeline.
+Comprehensive testing and evaluation strategy for the RAG Testing testing pipeline.
 
 ---
 
@@ -20,7 +20,7 @@ Comprehensive testing and evaluation strategy for the KB-Proto testing pipeline.
 
 ## Overview
 
-The KB-Proto testing strategy focuses on:
+The RAG Testing testing strategy focuses on:
 
 1. **Comparative Analysis**: Systematically compare provider combinations
 2. **Reproducibility**: Ensure all tests can be reproduced
@@ -573,7 +573,7 @@ Run provider comparisons nightly to detect regressions:
 
 ```bash
 # Schedule via cron or CI/CD
-0 2 * * * cd /path/to/kb-proto && pytest tests/benchmarks/test_provider_comparison.py --html=report.html
+0 2 * * * cd /path/to/rag-testing && pytest tests/benchmarks/test_provider_comparison.py --html=report.html
 ```
 
 ---

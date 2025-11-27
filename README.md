@@ -1,11 +1,11 @@
-# KB-Proto: Knowledge Base Testing Pipeline
+# RAG Testing: Knowledge Base Testing Pipeline
 
 A comprehensive testing pipeline for evaluating and comparing knowledge embedding and search systems across multiple providers (local, GCP, Azure).
 
 ## 🎯 Project Goal
 
 Build a headless testing framework to systematically compare:
-- **Vector Stores**: Elasticsearch (local), GCP Vertex AI, Azure Cognitive Search
+- **Vector Stores**: PostgreSQL (pgvector), Elasticsearch, GCP Vertex AI, Azure Cognitive Search
 - **Embedding Models**: Local (sentence-transformers), GCP Vertex, Azure OpenAI
 - **LLMs**: Ollama (local), GCP Vertex AI (Gemini), Azure OpenAI (GPT-4)
 
@@ -20,7 +20,7 @@ With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
 - 🔄 **Side-by-Side Comparison**: Test multiple configurations simultaneously
 - 💰 **Cost Tracking**: Per-query cost analysis across providers
 - 🎯 **Hybrid Search**: Combine vector (semantic) + keyword (BM25) search
-- 📝 **Feedback System**: Thumbs up/down + detailed scoring
+- 📝 **Feedback System**: 0-10 scoring with detailed analytics
 - 🧪 **Automated Testing**: Reproducible benchmark suites
 - 🚀 **FastAPI**: High-performance async API
 
@@ -39,7 +39,7 @@ With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
 ```bash
 # 1. Clone and setup
 git clone <repo-url>
-cd kb-proto
+cd rag-testing
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -54,7 +54,7 @@ docker-compose up -d
 python scripts/init_database.py
 
 # 5. Pull Ollama model
-docker exec -it kb-proto-ollama ollama pull llama3.2
+docker exec -it rag-testing-ollama ollama pull llama3.2
 
 # 6. Start API server
 uvicorn api.main:app --reload --port 8000
@@ -146,8 +146,7 @@ curl -X POST http://localhost:8000/feedback \
   -H "Content-Type: application/json" \
   -d '{
     "query_id": "550e8400-e29b-41d4-a716-446655440000",
-    "rating": "thumbs_up",
-    "relevance_score": 5,
+    "score": 8,
     "comment": "Very helpful!"
   }'
 ```
@@ -166,7 +165,7 @@ curl http://localhost:8000/metrics/compare
 
 ## 📊 Provider Configurations
 
-### Local (Zero Cost)
+### Local with Elasticsearch (Zero Cost)
 
 ```env
 VECTOR_STORE=elasticsearch
@@ -175,6 +174,20 @@ EMBEDDING_MODEL=all-mpnet-base-v2
 LLM_PROVIDER=ollama
 OLLAMA_MODEL=llama3.2
 ```
+
+### Local with pgvector (Zero Cost, Simpler)
+
+```env
+VECTOR_STORE=postgres
+POSTGRES_URL=postgresql://kbuser:kbpass@localhost:5432/kb_metrics
+EMBEDDING_PROVIDER=local
+EMBEDDING_MODEL=all-mpnet-base-v2
+EMBEDDING_DIMENSION=768
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2
+```
+
+**Recommended**: pgvector consolidates metrics + vectors in one database!
 
 ### GCP Vertex AI
 
@@ -202,10 +215,27 @@ AZURE_OPENAI_MODEL=gpt-4o
 
 ---
 
+## 🔍 Vector Store Comparison
+
+| Feature | pgvector (PostgreSQL) | Elasticsearch |
+|---------|----------------------|---------------|
+| **Setup** | ✅ Very Simple | ⚠️ Additional service |
+| **Cost** | ✅ Zero (use existing DB) | ⚠️ Separate cluster |
+| **Performance (<1M)** | ✅ Excellent (20-50ms) | ✅ Excellent (10-40ms) |
+| **Performance (>1M)** | ⚠️ Good | ✅ Excellent |
+| **Hybrid Search** | ✅ Native (tsvector + vector) | ✅ Native (BM25 + vector) |
+| **ACID Transactions** | ✅ Yes | ❌ Eventual consistency |
+| **Operational Overhead** | ✅ Low (one DB) | ⚠️ Medium (two systems) |
+| **Recall@10** | ✅ 0.95-0.98 | ✅ 0.96-0.99 |
+
+**Recommendation**: Start with **pgvector** for simplicity. Compare both empirically!
+
+---
+
 ## 📁 Project Structure
 
 ```
-kb-proto/
+rag-testing/
 ├── api/                    # FastAPI application
 │   ├── main.py            # API entry point
 │   ├── routers/           # API endpoints
@@ -248,6 +278,12 @@ kb-proto/
 | [API_REFERENCE.md](docs/API_REFERENCE.md) | Full API documentation with examples |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Testing approach, benchmarks, and evaluation |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Configuration guide for all providers |
+| [CONFIGURATION_TRACKING.md](docs/CONFIGURATION_TRACKING.md) | Configuration versioning, tracking, and drift detection |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture and database schema |
+| [PARAMETER_REFERENCE.md](docs/PARAMETER_REFERENCE.md) | Quick reference for all trackable parameters |
+| [DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md) | Key architectural and implementation decisions |
+| [METADATA_STRATEGY.md](docs/METADATA_STRATEGY.md) | Metadata tracking, source attribution, and quality boosting |
+| [PGVECTOR_IMPLEMENTATION.md](docs/PGVECTOR_IMPLEMENTATION.md) | PostgreSQL + pgvector as consolidated vector store |
 
 ---
 
@@ -357,8 +393,8 @@ python scripts/reset_database.py
 
 ### Ollama model not found
 ```bash
-docker exec kb-proto-ollama ollama list
-docker exec kb-proto-ollama ollama pull llama3.2
+docker exec rag-testing-ollama ollama list
+docker exec rag-testing-ollama ollama pull llama3.2
 ```
 
 ### Database connection failed
@@ -379,7 +415,7 @@ This project is based on the proven architecture from [kb-search](../kb-search),
 - Source management and tracking
 - Streamlit UI for end-users
 
-**Key Difference**: kb-proto focuses on **testing and comparison** (headless API), while kb-search is designed for **production use** (with UI).
+**Key Difference**: rag-testing focuses on **testing and comparison** (headless API), while kb-search is designed for **production use** (with UI).
 
 ---
 

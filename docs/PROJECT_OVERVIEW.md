@@ -1,4 +1,4 @@
-# KB-Proto: Knowledge Base Testing Pipeline
+# RAG Testing: Knowledge Base Testing Pipeline
 
 ## Project Goal
 
@@ -183,7 +183,7 @@ Content-Type: application/json
 ## Project Structure
 
 ```
-kb-proto/
+rag-testing/
 ├── api/
 │   ├── main.py                      # FastAPI application entry
 │   ├── routers/
@@ -394,7 +394,7 @@ kb-proto/
 
 ## Key Differences from kb-search
 
-| Aspect | kb-search (Production) | kb-proto (Testing) |
+| Aspect | kb-search (Production) | rag-testing (Testing) |
 |--------|------------------------|---------------------|
 | **Purpose** | Production RAG system | Testing & comparison pipeline |
 | **UI** | Streamlit web interface | Headless API only |
@@ -479,7 +479,7 @@ AZURE_OPENAI_MODEL=gpt-4o
 
 ```bash
 # Initial setup
-cd kb-proto
+cd rag-testing
 python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
