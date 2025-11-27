@@ -1,53 +1,53 @@
-version: '3.8'
-
 services:
-  # PostgreSQL with pgvector extension
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: rag-testing-postgres
-    environment:
-      POSTGRES_DB: rag_testing
-      POSTGRES_USER: raguser
-      POSTGRES_PASSWORD: changeme
-      POSTGRES_INITDB_ARGS: "-E UTF8"
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U raguser -d rag_testing"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - rag-network
+  # PostgreSQL with pgvector extension (DISABLED - using local PostgreSQL)
+  # Uncomment this if you want to use Docker PostgreSQL instead of local
+  # postgres:
+  #   image: pgvector/pgvector:pg16
+  #   container_name: rag-testing-postgres
+  #   environment:
+  #     POSTGRES_DB: rag_testing
+  #     POSTGRES_USER: raguser
+  #     POSTGRES_PASSWORD: changeme
+  #     POSTGRES_INITDB_ARGS: "-E UTF8"
+  #   ports:
+  #     - "5433:5432"  # Changed to 5433 to avoid conflict with local PostgreSQL
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U raguser -d rag_testing"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - rag-network
 
-  # Ollama (Local LLM)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: rag-testing-ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - rag-network
-    # Uncomment if you have NVIDIA GPU
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+  # Ollama (Local LLM) - DISABLED, using local Ollama
+  # Uncomment this if you want to use Docker Ollama instead of local
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: rag-testing-ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   environment:
+  #     - OLLAMA_HOST=0.0.0.0
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   networks:
+  #     - rag-network
+  #   # Uncomment if you have NVIDIA GPU
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - driver: nvidia
+  #   #           count: 1
+  #   #           capabilities: [gpu]
 
   # RAG Testing API
   api:
@@ -56,25 +56,22 @@ services:
       dockerfile: Dockerfile
     container_name: rag-testing-api
     environment:
-      - POSTGRES_HOST=postgres
+      - POSTGRES_HOST=host.docker.internal  # Connect to host machine's PostgreSQL
       - POSTGRES_PORT=5432
       - POSTGRES_DB=rag_testing
       - POSTGRES_USER=raguser
       - POSTGRES_PASSWORD=changeme
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Connect to host machine's Ollama
       - ENVIRONMENT=docker
     ports:
       - "8000:8000"
     volumes:
       - .:/app
       - embeddings_cache:/app/.cache
-    depends_on:
-      postgres:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
     networks:
       - rag-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Enable host.docker.internal on Linux
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Optional: Elasticsearch (if you want to compare with pgvector)

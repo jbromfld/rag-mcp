@@ -11,7 +11,7 @@ from .models import (
     VectorStoreConfig,
     ConfigurationProfile,
 )
-from .loader import ConfigLoader, get_config_loader
+from .loader import ConfigLoader, get_config_loader, set_config_loader
 from .settings import Settings, get_settings
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "ConfigurationProfile",
     "ConfigLoader",
     "get_config_loader",
+    "set_config_loader",
     "Settings",
     "get_settings",
 ]

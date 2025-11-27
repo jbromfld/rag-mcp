@@ -168,7 +168,7 @@ class PgVectorStore(VectorStore):
                     content=row["content"],
                     content_hash=row["content_hash"],
                     vector=list(row["content_vector"]) if row["content_vector"] else None,
-                    metadata=row["metadata"],
+                    metadata=row["metadata"] if isinstance(row["metadata"], dict) else json.loads(row["metadata"]) if row["metadata"] else {},
                     score=float(row["score"]),
                 )
                 results.append(SearchResult(chunk=chunk, score=float(row["score"]), rank=rank))
@@ -224,7 +224,7 @@ class PgVectorStore(VectorStore):
                     content=row["content"],
                     content_hash=row["content_hash"],
                     vector=list(row["content_vector"]) if row["content_vector"] else None,
-                    metadata=row["metadata"],
+                    metadata=row["metadata"] if isinstance(row["metadata"], dict) else json.loads(row["metadata"]) if row["metadata"] else {},
                     score=float(row["score"]),
                 )
                 results.append(SearchResult(chunk=chunk, score=float(row["score"]), rank=rank))
@@ -328,7 +328,7 @@ class PgVectorStore(VectorStore):
                     content=row["content"],
                     content_hash=row["content_hash"],
                     vector=list(row["content_vector"]) if row["content_vector"] else None,
-                    metadata=row["metadata"],
+                    metadata=row["metadata"] if isinstance(row["metadata"], dict) else json.loads(row["metadata"]) if row["metadata"] else {},
                     score=float(row["rrf_score"]),
                 )
                 results.append(SearchResult(chunk=chunk, score=float(row["rrf_score"]), rank=rank))

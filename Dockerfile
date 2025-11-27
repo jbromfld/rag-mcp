@@ -14,16 +14,10 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download spaCy model
-RUN python -m spacy download en_core_web_sm
-
-# Install Playwright browsers (for web scraping)
-RUN playwright install --with-deps chromium
-
 # Copy application code
 COPY . .
 
-# Create cache directory
+# Create cache directory for sentence-transformers models
 RUN mkdir -p .cache
 
 # Expose port

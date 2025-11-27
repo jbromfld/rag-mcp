@@ -315,16 +315,23 @@ class ConfigLoader:
         Returns:
             ConfigurationProfile instance
         """
+        # Parse JSON columns (asyncpg returns them as dicts already, but handle both cases)
+        provider_config_data = row["provider_config"] if isinstance(row["provider_config"], dict) else json.loads(row["provider_config"])
+        chunking_config_data = row["chunking_config"] if isinstance(row["chunking_config"], dict) else json.loads(row["chunking_config"])
+        retrieval_config_data = row["retrieval_config"] if isinstance(row["retrieval_config"], dict) else json.loads(row["retrieval_config"])
+        generation_config_data = row["generation_config"] if isinstance(row["generation_config"], dict) else json.loads(row["generation_config"])
+        system_config_data = row["system_config"] if isinstance(row["system_config"], dict) else json.loads(row["system_config"])
+
         return ConfigurationProfile(
             profile_id=row["profile_id"],
             profile_name=row["profile_name"],
             version=row["version"],
             parent_profile_id=row["parent_profile_id"],
-            provider_config=ProviderConfig(**row["provider_config"]),
-            chunking_config=ChunkingConfig(**row["chunking_config"]),
-            retrieval_config=RetrievalConfig(**row["retrieval_config"]),
-            generation_config=GenerationConfig(**row["generation_config"]),
-            system_config=SystemConfig(**row["system_config"]),
+            provider_config=ProviderConfig(**provider_config_data),
+            chunking_config=ChunkingConfig(**chunking_config_data),
+            retrieval_config=RetrievalConfig(**retrieval_config_data),
+            generation_config=GenerationConfig(**generation_config_data),
+            system_config=SystemConfig(**system_config_data),
             description=row["description"],
             is_active=row["is_active"],
             created_at=row["created_at"],
