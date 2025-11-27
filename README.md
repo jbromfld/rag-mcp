@@ -30,34 +30,30 @@ With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
 
 ### Prerequisites
 
-- Python 3.9+
 - Docker & Docker Compose
-- 8GB+ RAM (16GB recommended)
+- 8GB+ RAM (16GB recommended for embeddings)
+- ~5GB disk space for models
 
 ### Setup (5 minutes)
 
 ```bash
-# 1. Clone and setup
+# 1. Clone repository
 git clone <repo-url>
 cd rag-testing
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
 
-# 2. Copy configuration template
-cp .env.example .env
+# 2. Run setup script
+./setup.sh
+# This will:
+# - Create .env file from template
+# - Pull Docker images
+# - Start PostgreSQL and Ollama
+# - Initialize database with schema
+# - Pull llama3.2 model
 
-# 3. Start infrastructure (Elasticsearch, PostgreSQL, Ollama)
-docker-compose up -d
+# 3. Start the API
+./start.sh
 
-# 4. Initialize database
-python scripts/init_database.py
-
-# 5. Pull Ollama model
-docker exec -it rag-testing-ollama ollama pull llama3.2
-
-# 6. Start API server
-uvicorn api.main:app --reload --port 8000
+# API is ready at: http://localhost:8000
 ```
 
 ### Verify Setup
@@ -66,8 +62,8 @@ uvicorn api.main:app --reload --port 8000
 # Check API health
 curl http://localhost:8000/health
 
-# Check system status
-curl http://localhost:8000/status
+# View API documentation
+open http://localhost:8000/docs
 ```
 
 ---
@@ -77,77 +73,49 @@ curl http://localhost:8000/status
 ### Ingest Documents
 
 ```bash
-# Ingest a website
+# Ingest from URL
 curl -X POST http://localhost:8000/ingest \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://docs.python.org/3/",
-    "depth": 2,
-    "max_pages": 50,
-    "provider_config": {
-      "vector_store": "elasticsearch",
-      "embedding_provider": "local",
-      "embedding_model": "all-mpnet-base-v2",
-      "embedding_dimension": 768
-    }
+    "url": "https://docs.python.org/3/tutorial/venv.html",
+    "profile": "default"
   }'
 
-# Check ingestion status
-curl http://localhost:8000/ingest/{job_id}
+# Ingest direct text
+curl -X POST http://localhost:8000/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "FastAPI is a modern web framework for Python...",
+    "title": "FastAPI Overview",
+    "profile": "default"
+  }'
 ```
 
 ### Query Knowledge Base
 
 ```bash
-# Query with local providers
+# Query with default profile (local providers)
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{
     "query": "How do I create a virtual environment in Python?",
     "top_k": 5,
-    "provider_config": {
-      "vector_store": "elasticsearch",
-      "embedding_provider": "local",
-      "llm_provider": "ollama",
-      "llm_model": "llama3.2"
-    }
+    "profile": "default"
   }'
-```
 
-### Compare Providers
-
-```bash
-# Compare multiple configurations side-by-side
-curl -X POST http://localhost:8000/compare \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "How to implement error handling in FastAPI?",
-    "configurations": [
-      {
-        "name": "local-baseline",
-        "vector_store": "elasticsearch",
-        "embedding_provider": "local",
-        "llm_provider": "ollama"
-      },
-      {
-        "name": "vertex-hybrid",
-        "vector_store": "elasticsearch",
-        "embedding_provider": "local",
-        "llm_provider": "vertex"
-      }
-    ]
-  }'
+# Response includes answer, sources, and metrics
 ```
 
 ### Submit Feedback
 
 ```bash
+# Score 0-10 (7+ is "satisfied")
 curl -X POST http://localhost:8000/feedback \
   -H "Content-Type: application/json" \
   -d '{
     "query_id": "550e8400-e29b-41d4-a716-446655440000",
     "score": 8,
-    "comment": "Very helpful!"
+    "comment": "Very helpful answer with good sources!"
   }'
 ```
 
@@ -155,10 +123,13 @@ curl -X POST http://localhost:8000/feedback \
 
 ```bash
 # Get metrics summary
-curl http://localhost:8000/metrics?start_date=2025-11-01&end_date=2025-11-23
+curl http://localhost:8000/metrics
 
-# Compare providers
-curl http://localhost:8000/metrics/compare
+# Get metrics for specific profile
+curl http://localhost:8000/metrics?profile=default
+
+# List available profiles
+curl http://localhost:8000/profiles
 ```
 
 ---
