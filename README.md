@@ -20,6 +20,8 @@ With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
 - 🔄 **Side-by-Side Comparison**: Test multiple configurations simultaneously
 - 💰 **Cost Tracking**: Per-query cost analysis across providers
 - 🎯 **Hybrid Search**: Combine vector (semantic) + keyword (BM25) search
+- 🕷️ **Recursive Crawling**: Scrape multiple pages with depth control and URL filtering
+- 🎯 **Smart Deduplication**: Automatically deduplicate sources in query results
 - 📝 **Feedback System**: 0-10 scoring with detailed analytics
 - 🧪 **Automated Testing**: Reproducible benchmark suites
 - 🚀 **FastAPI**: High-performance async API
@@ -68,16 +70,113 @@ open http://localhost:8000/docs
 
 ---
 
-## 📖 Usage Examples
+## 📦 Deployment Options
 
-### Ingest Documents
+### Docker Compose (Local Development)
+
+Fully containerized setup for local development and testing:
 
 ```bash
-# Ingest from URL
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Stop all services
+docker-compose down
+```
+
+**Services**:
+- PostgreSQL with pgvector (port 5433)
+- Ollama LLM server (port 11434)
+- FastAPI application (port 8000)
+
+**Note**: Port 5433 is used for PostgreSQL to avoid conflicts with local installations.
+
+### Kubernetes (Production)
+
+Production-ready Kubernetes manifests for cloud deployment:
+
+```bash
+# Quick deploy
+cd k8s
+./deploy.sh
+
+# Or manually
+kubectl apply -k k8s/
+
+# Access API
+kubectl port-forward -n rag-testing svc/rag-testing-api 8000:80
+```
+
+**Features**:
+- Horizontal scaling for API pods
+- Persistent storage for PostgreSQL and Ollama
+- Health checks and readiness probes
+- ConfigMaps and Secrets management
+- Optional Ingress for external access
+
+**Cloud Support**:
+- Google Cloud (GKE) - with GPU support
+- AWS (EKS) - with EBS volumes
+- Azure (AKS) - with managed disks
+
+See [k8s/README.md](k8s/README.md) for detailed deployment instructions.
+
+---
+
+## 📖 Usage Examples
+
+### Option 1: CLI Tool (Easiest)
+
+A simple Python CLI for quick testing:
+
+```bash
+# Install requests (if not already installed)
+pip install requests
+
+# Check API health
+python cli.py health
+
+# Ingest a single page
+python cli.py ingest https://docs.python.org/3/tutorial/venv.html
+
+# Recursive crawl (depth=3, max 50 pages)
+python cli.py ringest https://docs.python.org/3/ 3 50
+
+# Query the knowledge base
+python cli.py query "How do I create a virtual environment?"
+
+# View metrics
+python cli.py metrics
+
+# List profiles
+python cli.py profiles
+```
+
+### Option 2: cURL (Direct API)
+
+#### Ingest Documents
+
+```bash
+# Ingest single page
 curl -X POST http://localhost:8000/ingest \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://docs.python.org/3/tutorial/venv.html",
+    "profile": "default"
+  }'
+
+# Ingest with recursive crawling
+curl -X POST http://localhost:8000/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.python.org/3/",
+    "depth": 3,
+    "max_pages": 100,
+    "url_patterns": ["*/tutorial/*", "*/library/*"],
+    "exclude_patterns": ["*/genindex.html"],
     "profile": "default"
   }'
 
@@ -91,7 +190,7 @@ curl -X POST http://localhost:8000/ingest \
   }'
 ```
 
-### Query Knowledge Base
+#### Query Knowledge Base
 
 ```bash
 # Query with default profile (local providers)
@@ -106,7 +205,7 @@ curl -X POST http://localhost:8000/query \
 # Response includes answer, sources, and metrics
 ```
 
-### Submit Feedback
+#### Submit Feedback
 
 ```bash
 # Score 0-10 (7+ is "satisfied")
@@ -119,7 +218,7 @@ curl -X POST http://localhost:8000/feedback \
   }'
 ```
 
-### View Metrics
+#### View Metrics
 
 ```bash
 # Get metrics summary
@@ -395,16 +494,19 @@ This project is based on the proven architecture from [kb-search](../kb-search),
 From the original specification:
 
 - ✅ Command-line URL ingestion with scraping
+- ✅ Recursive crawling with depth and max_pages control
+- ✅ URL pattern filtering (include/exclude patterns)
 - ✅ Multiple vector store options (Elasticsearch, Vertex, Azure)
 - ✅ Multiple embedding dimensions (768, 1536, etc.)
 - ✅ Multiple LLM providers (local, GCP, Azure)
 - ✅ Hybrid search (vector + keyword)
-- ✅ Feedback system (thumbs up/down, scores, comments)
+- ✅ Smart source deduplication in query results
+- ✅ Feedback system (0-10 scoring with comments)
 - ✅ Metrics tracking (latency, cost, accuracy, drift)
 - ✅ Comparative testing framework
 - ✅ FastAPI headless API
-- ✅ `/ingest` endpoint (with depth, max_pages)
-- ✅ `/query` endpoint
+- ✅ `/ingest` endpoint (with depth, max_pages, url_patterns, exclude_patterns)
+- ✅ `/query` endpoint (with deduplicated sources)
 - ✅ PostgreSQL for feedback and metrics
 
 ---

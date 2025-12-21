@@ -1,10 +1,12 @@
 """Simple document scraper and processor."""
 
+import asyncio
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional
-from urllib.parse import urlparse
+from fnmatch import fnmatch
+from typing import Dict, List, Optional, Set
+from urllib.parse import urljoin, urlparse
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -22,7 +24,7 @@ class ScrapedDocument:
 
 
 class DocumentScraper:
-    """Simple document scraper for web pages."""
+    """Simple document scraper for web pages with recursive crawling."""
 
     def __init__(self, timeout: int = 10, user_agent: str = "RAG-Testing-Bot/1.0"):
         """Initialize scraper.
@@ -208,6 +210,163 @@ class DocumentScraper:
 
         text = "\n".join(lines)
         return text.strip()
+
+    async def scrape_recursive(
+        self,
+        start_url: str,
+        max_depth: int = 2,
+        max_pages: int = 50,
+        url_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None,
+    ) -> List[ScrapedDocument]:
+        """Recursively scrape URLs starting from a given URL.
+
+        Args:
+            start_url: Starting URL to crawl from
+            max_depth: Maximum crawl depth (1 = only start_url)
+            max_pages: Maximum number of pages to scrape
+            url_patterns: URL patterns to include (glob syntax, e.g., "*/docs/*")
+            exclude_patterns: URL patterns to exclude (glob syntax)
+
+        Returns:
+            List of ScrapedDocument objects
+
+        Raises:
+            RuntimeError: If scraping fails
+        """
+        # Initialize tracking sets
+        visited: Set[str] = set()
+        to_visit: List[tuple[str, int, bool]] = [(start_url, 0, True)]  # (url, depth, is_start)
+        scraped_docs: List[ScrapedDocument] = []
+
+        # Get base domain for same-domain filtering
+        base_domain = urlparse(start_url).netloc
+
+        while to_visit and len(scraped_docs) < max_pages:
+            url, depth, is_start = to_visit.pop(0)
+
+            # Skip if already visited
+            if url in visited:
+                continue
+
+            # Mark as visited
+            visited.add(url)
+
+            # Check URL patterns (but always allow the starting URL)
+            if not is_start and not self._should_scrape_url(url, url_patterns, exclude_patterns):
+                # Still extract links from this page to find matching pages
+                if depth < max_depth:
+                    try:
+                        links = await self._extract_links(url, base_domain)
+                        for link in links:
+                            if link not in visited:
+                                to_visit.append((link, depth + 1, False))
+                    except Exception as e:
+                        print(f"Warning: Failed to extract links from {url}: {e}")
+                continue
+
+            # Scrape the page
+            try:
+                doc = await self.scrape_url(url)
+                scraped_docs.append(doc)
+
+                # If we haven't reached max depth, extract links to crawl
+                if depth < max_depth:
+                    links = await self._extract_links(url, base_domain)
+                    for link in links:
+                        if link not in visited:
+                            to_visit.append((link, depth + 1, False))
+
+            except Exception as e:
+                # Log error but continue crawling
+                print(f"Warning: Failed to scrape {url}: {e}")
+                continue
+
+        return scraped_docs
+
+    def _should_scrape_url(
+        self,
+        url: str,
+        url_patterns: Optional[List[str]],
+        exclude_patterns: Optional[List[str]],
+    ) -> bool:
+        """Check if URL should be scraped based on patterns.
+
+        Args:
+            url: URL to check
+            url_patterns: Include patterns (if None, include all)
+            exclude_patterns: Exclude patterns
+
+        Returns:
+            True if URL should be scraped
+        """
+        # Check exclude patterns first
+        if exclude_patterns:
+            for pattern in exclude_patterns:
+                if fnmatch(url, pattern):
+                    return False
+
+        # Check include patterns
+        if url_patterns:
+            for pattern in url_patterns:
+                if fnmatch(url, pattern):
+                    return True
+            return False  # No pattern matched
+
+        return True  # No patterns means include all
+
+    async def _extract_links(self, url: str, base_domain: str) -> List[str]:
+        """Extract links from a page.
+
+        Args:
+            url: Current page URL
+            base_domain: Base domain to restrict links to
+
+        Returns:
+            List of absolute URLs from the same domain
+        """
+        session = await self._get_session()
+
+        try:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    return []
+
+                html = await response.text()
+
+        except Exception:
+            return []
+
+        # Parse HTML
+        soup = BeautifulSoup(html, "lxml")
+
+        # Extract all links
+        links = []
+        for anchor in soup.find_all("a", href=True):
+            href = anchor["href"]
+
+            # Convert relative URLs to absolute
+            absolute_url = urljoin(url, href)
+
+            # Parse URL
+            parsed = urlparse(absolute_url)
+
+            # Skip non-HTTP(S) links
+            if parsed.scheme not in ("http", "https"):
+                continue
+
+            # Skip if different domain
+            if parsed.netloc != base_domain:
+                continue
+
+            # Remove fragment
+            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            if parsed.query:
+                clean_url += f"?{parsed.query}"
+
+            links.append(clean_url)
+
+        return list(set(links))  # Deduplicate
 
     async def close(self):
         """Close HTTP session."""

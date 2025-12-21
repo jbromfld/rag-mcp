@@ -63,7 +63,7 @@ sleep 5
 
 MAX_TRIES=30
 TRIES=0
-until docker-compose exec -T postgres pg_isready -U raguser -d rag_testing > /dev/null 2>&1; do
+until docker-compose exec -T postgres pg_isready -U testuser -d rag_testing > /dev/null 2>&1; do
     TRIES=$((TRIES+1))
     if [ $TRIES -ge $MAX_TRIES ]; then
         echo "❌ PostgreSQL failed to start after ${MAX_TRIES} tries"

@@ -70,8 +70,8 @@ CREATE TABLE embeddings (
     -- Rich metadata (JSONB for flexibility)
     metadata JSONB NOT NULL,
 
-    -- Configuration tracking
-    profile_id UUID REFERENCES configuration_profiles(profile_id),
+    -- Configuration tracking (nullable for testing without profiles)
+    profile_id UUID REFERENCES configuration_profiles(profile_id) ON DELETE SET NULL,
 
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -83,8 +83,8 @@ CREATE TABLE embeddings (
     retrieval_count INT DEFAULT 0,
     click_count INT DEFAULT 0,
 
-    -- Deduplication
-    UNIQUE(content_hash, profile_id)
+    -- Deduplication (allow NULL profile_id)
+    UNIQUE NULLS NOT DISTINCT (content_hash, profile_id)
 );
 
 -- Indexes for embeddings
@@ -414,16 +414,16 @@ VALUES (
 -- ============================================
 
 -- Grant usage on schema
-GRANT USAGE ON SCHEMA public TO raguser;
+GRANT USAGE ON SCHEMA public TO testuser;
 
 -- Grant all privileges on all tables
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO raguser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO testuser;
 
 -- Grant all privileges on all sequences
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO raguser;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO testuser;
 
 -- Grant execute on all functions
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO raguser;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO testuser;
 
 -- ============================================
 -- Database Ready

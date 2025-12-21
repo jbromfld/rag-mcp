@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
     postgres_db: str = Field(default="rag_testing", alias="POSTGRES_DB")
-    postgres_user: str = Field(default="raguser", alias="POSTGRES_USER")
+    postgres_user: str = Field(default="testuser", alias="POSTGRES_USER")
     postgres_password: str = Field(default="changeme", alias="POSTGRES_PASSWORD")
 
     db_pool_size: int = Field(default=10, alias="DB_POOL_SIZE")

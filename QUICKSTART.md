@@ -25,11 +25,22 @@ API will be available at: **http://localhost:8000**
 
 View docs at: **http://localhost:8000/docs**
 
+Pull desired model
+
+# Pull the llama3.2 model into the Ollama container
+docker-compose exec ollama ollama pull llama3.2
+
+# Or if you prefer a smaller/faster model for testing:
+docker-compose exec ollama ollama pull llama3.2:1b
+
+# List available models to verify
+docker-compose exec ollama ollama list
+
 ---
 
 ## 📝 Test the API
 
-### Ingest a Document
+### Ingest a Single Document
 
 ```bash
 curl -X POST http://localhost:8000/ingest \
@@ -44,9 +55,36 @@ curl -X POST http://localhost:8000/ingest \
 {
   "job_id": "123e4567-e89b-12d3-a456-426614174000",
   "success": true,
+  "pages_scraped": 1,
   "chunks_created": 12,
   "embeddings_generated": 12,
   "processing_time_ms": 3421.5
+}
+```
+
+### Ingest with Recursive Crawling
+
+```bash
+curl -X POST http://localhost:8000/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.python.org/3/",
+    "depth": 3,
+    "max_pages": 50,
+    "url_patterns": ["*/tutorial/*"],
+    "exclude_patterns": ["*/genindex.html"]
+  }'
+```
+
+**Response:**
+```json
+{
+  "job_id": "123e4567-e89b-12d3-a456-426614174001",
+  "success": true,
+  "pages_scraped": 45,
+  "chunks_created": 523,
+  "embeddings_generated": 523,
+  "processing_time_ms": 28341.2
 }
 ```
 
@@ -70,7 +108,9 @@ curl -X POST http://localhost:8000/query \
       "citation": "[1]",
       "title": "Virtual Environments and Packages",
       "url": "https://docs.python.org/3/tutorial/venv.html",
-      "score": 0.89
+      "score": 0.89,
+      "section": null,
+      "last_modified": "2025-10-15T08:30:00Z"
     }
   ],
   "metrics": {
@@ -80,6 +120,8 @@ curl -X POST http://localhost:8000/query \
   }
 }
 ```
+
+**Note:** Sources are automatically deduplicated by URL - if multiple chunks come from the same document, only the highest-scoring chunk is shown as a source.
 
 ### Submit Feedback
 
@@ -118,6 +160,8 @@ curl http://localhost:8000/metrics
 ## 🎯 Key Features Demonstrated
 
 ✅ **Zero-cost local inference** (PostgreSQL + Ollama + sentence-transformers)
+✅ **Recursive web crawling** with depth control and URL filtering
+✅ **Smart source deduplication** for cleaner query results
 ✅ **Hybrid search** (vector + keyword with RRF fusion)
 ✅ **Metadata boosting** (recency, quality, popularity)
 ✅ **Citations** with inline references
@@ -170,7 +214,13 @@ docker-compose down -v
 ./setup.sh
 
 # Access PostgreSQL
-docker-compose exec postgres psql -U raguser -d rag_testing
+docker-compose exec postgres psql -U testuser -d rag_testing
+
+# Pull the llama3.2 model into the Ollama container
+docker-compose exec ollama ollama pull llama3.2
+
+# Or if you prefer a smaller/faster model for testing:
+docker-compose exec ollama ollama pull llama3.2:1b
 
 # Check Ollama models
 docker-compose exec ollama ollama list
@@ -240,6 +290,10 @@ rag-testing/
 ## 💡 Tips
 
 - **Local testing is FREE** (no cloud costs)
+- **Recursive crawling** lets you ingest entire documentation sites with one request
+- **URL patterns** help focus on relevant sections (e.g., `["*/tutorial/*", "*/library/*"]`)
+- **Exclude patterns** skip index pages and search results (e.g., `["*/genindex.html", "*/search.html"]`)
+- **Source deduplication** ensures clean, non-repetitive results
 - **Feedback improves quality** through quality boosting
 - **Recent docs score higher** via recency boosting
 - **Use profiles** to compare configurations

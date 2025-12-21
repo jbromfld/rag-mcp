@@ -30,7 +30,7 @@ echo ""
 DB_HOST="${POSTGRES_HOST:-localhost}"
 DB_PORT="${POSTGRES_PORT:-5432}"
 DB_NAME="${POSTGRES_DB:-rag_testing}"
-DB_USER="${POSTGRES_USER:-raguser}"
+DB_USER="${POSTGRES_USER:-testuser}"
 DB_PASSWORD="${POSTGRES_PASSWORD:-changeme}"
 
 echo "Database Configuration:"

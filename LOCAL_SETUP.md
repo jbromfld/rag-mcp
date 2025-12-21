@@ -69,7 +69,7 @@ cd rag-testing
 This will:
 - Create `.env` configuration file
 - Check that PostgreSQL and Ollama are accessible
-- Create database and user (`rag_testing` / `raguser`)
+- Create database and user (`rag_testing` / `testuser`)
 - Run `db/init.sql` to set up schema with pgvector
 - Verify llama3.2 model is available
 
@@ -82,7 +82,7 @@ Check `.env` file if you need custom settings:
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=rag_testing
-POSTGRES_USER=raguser
+POSTGRES_USER=testuser
 POSTGRES_PASSWORD=changeme
 
 # Ollama connection (should match your local Ollama)
@@ -199,7 +199,7 @@ docker-compose build api
 docker-compose up -d api
 
 # Connect to PostgreSQL
-psql -h localhost -U raguser -d rag_testing
+psql -h localhost -U testuser -d rag_testing
 
 # Check Ollama models
 ollama list

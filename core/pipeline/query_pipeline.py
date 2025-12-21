@@ -274,6 +274,8 @@ Answer:"""
     ) -> tuple[str, List[SourceInfo]]:
         """Format response with citation sources.
 
+        Deduplicates sources by URL, keeping the highest score for each unique document.
+
         Args:
             answer: LLM generated answer
             retrieval_results: Retrieval results
@@ -281,17 +283,41 @@ Answer:"""
         Returns:
             Tuple of (formatted answer, list of SourceInfo)
         """
-        sources = []
+        # Group results by source URL to deduplicate
+        sources_by_url = {}
 
-        for i, result in enumerate(retrieval_results, start=1):
+        for result in retrieval_results:
             metadata = result.metadata
+            source_url = metadata.get("source_url", "")
+
+            # If we've seen this URL before, only keep if this has a higher score
+            if source_url in sources_by_url:
+                if result.boosted_score > sources_by_url[source_url]["score"]:
+                    sources_by_url[source_url] = {
+                        "title": metadata.get("title", "Unknown"),
+                        "score": result.boosted_score,
+                        "section": metadata.get("section_title"),
+                        "last_modified": metadata.get("last_modified"),
+                    }
+            else:
+                # First time seeing this URL
+                sources_by_url[source_url] = {
+                    "title": metadata.get("title", "Unknown"),
+                    "score": result.boosted_score,
+                    "section": metadata.get("section_title"),
+                    "last_modified": metadata.get("last_modified"),
+                }
+
+        # Convert to SourceInfo list with citations
+        sources = []
+        for i, (url, info) in enumerate(sources_by_url.items(), start=1):
             source = SourceInfo(
                 citation=f"[{i}]",
-                title=metadata.get("title", "Unknown"),
-                url=metadata.get("source_url", ""),
-                score=result.boosted_score,
-                section=metadata.get("section_title"),
-                last_modified=metadata.get("last_modified"),
+                title=info["title"],
+                url=url,
+                score=info["score"],
+                section=info["section"],
+                last_modified=info["last_modified"],
             )
             sources.append(source)
 

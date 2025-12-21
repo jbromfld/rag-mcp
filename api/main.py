@@ -2,7 +2,7 @@
 
 import asyncpg
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request
@@ -119,6 +119,11 @@ class IngestRequest(BaseModel):
     title: Optional[str] = Field(None, description="Document title")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
     profile: str = Field("default", description="Configuration profile name")
+    # Crawling parameters
+    depth: int = Field(1, ge=1, le=5, description="Maximum crawl depth (1 = only URL, 2+ = recursive)")
+    max_pages: int = Field(50, ge=1, le=500, description="Maximum pages to scrape")
+    url_patterns: Optional[List[str]] = Field(None, description="URL patterns to include (glob syntax)")
+    exclude_patterns: Optional[List[str]] = Field(None, description="URL patterns to exclude (glob syntax)")
 
 
 class QueryRequestAPI(BaseModel):
@@ -155,10 +160,16 @@ async def get_profile(profile_name: str) -> ConfigurationProfile:
     Raises:
         HTTPException: If profile not found
     """
-    # For now, just use default profile from environment
-    # TODO: Add database-backed profiles later
+    # For "default" profile, check if it exists in DB, if not create and save it
     if profile_name == "default":
-        return app_state.config_loader.create_default_profile()
+        try:
+            # Try to get existing default profile from database
+            return await app_state.config_loader.get_profile_by_name("default")
+        except ValueError:
+            # Doesn't exist, create and save it
+            profile = app_state.config_loader.create_default_profile()
+            await app_state.config_loader.save_profile(profile)
+            return profile
 
     try:
         return await app_state.config_loader.get_profile_by_name(profile_name)
@@ -230,6 +241,10 @@ async def ingest(request: IngestRequest):
             content=request.content,
             title=request.title,
             metadata=request.metadata,
+            depth=request.depth,
+            max_pages=request.max_pages,
+            url_patterns=request.url_patterns,
+            exclude_patterns=request.exclude_patterns,
         )
 
         result = await pipeline.ingest(ingestion_request)
@@ -240,6 +255,7 @@ async def ingest(request: IngestRequest):
         return {
             "job_id": str(result.job_id),
             "success": result.success,
+            "pages_scraped": result.pages_scraped,
             "chunks_created": result.chunks_created,
             "embeddings_generated": result.embeddings_generated,
             "processing_time_ms": result.processing_time_ms,
