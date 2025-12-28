@@ -28,10 +28,6 @@ ENV/
 
 # Environment Variables
 .env
-.env.local
-.env.*.local
-.env.template
-.env
 
 # IDE
 .vscode/
@@ -51,6 +47,14 @@ ENV/
 htmlcov/
 *.cover
 
+# Docker Compose
+docker-compose-local.yml
+
+# Setup Scripts
+setup-local.sh
+
+# Environment Variables
+.env.template
 # Logs
 *.log
 logs/
@@ -75,3 +79,5 @@ models/
 tmp/
 temp/
 *.tmp
+docker-compose-local.yml
+docker-compose-local.yml

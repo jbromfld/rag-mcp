@@ -3,6 +3,9 @@
 -- PostgreSQL with pgvector extension
 -- ============================================
 
+-- psql -U testuser -d rag_testing < db/cleanup.sql
+-- psql -U testuser -d rag_testing < db/init.sql
+
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";

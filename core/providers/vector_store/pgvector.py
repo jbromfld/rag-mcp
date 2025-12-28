@@ -1,6 +1,5 @@
 """PostgreSQL pgvector implementation of VectorStore."""
 
-import hashlib
 import json
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -440,15 +439,15 @@ class PgVectorStore(VectorStore):
         conditions = []
         for key, value in filter_dict.items():
             if isinstance(value, str):
-                conditions.append(f"metadata->>'{ key}' = '{value}'")
+                conditions.append(f"metadata->>'{key}' = '{value}'")
             elif isinstance(value, (int, float)):
-                conditions.append(f"(metadata->>'{ key}')::numeric = {value}")
+                conditions.append(f"(metadata->>'{key}')::numeric = {value}")
             elif isinstance(value, bool):
-                conditions.append(f"(metadata->>'{ key}')::boolean = {str(value).lower()}")
+                conditions.append(f"(metadata->>'{key}')::boolean = {str(value).lower()}")
             elif isinstance(value, list):
                 # For array membership (e.g., source_type IN ['documentation', 'wiki'])
                 values_str = "', '".join(map(str, value))
-                conditions.append(f"metadata->>'{ key}' IN ('{values_str}')")
+                conditions.append(f"metadata->>'{key}' IN ('{values_str}')")
 
         if not conditions:
             return ""

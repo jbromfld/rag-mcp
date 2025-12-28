@@ -18,9 +18,11 @@ def pretty_print(response):
     try:
         data = response.json()
         print(json.dumps(data, indent=2))
-    except:
+    except Exception as e:
+        print(f"Error pretty printing response: {e}")
         print(response.text)
-    print(f"\nStatus: {response.status_code}")
+    finally:
+        print(f"\nStatus: {response.status_code}")
 
 
 def health():

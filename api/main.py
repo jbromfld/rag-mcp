@@ -311,15 +311,13 @@ async def query(request: QueryRequestAPI):
     response = await pipeline.process_query(query_request)
 
     # Save metrics to database
-    # TODO: Fix chunk ID extraction
-    # retrieved_chunk_ids = [source.citation.strip("[]") for source in response.sources]
-    # await app_state.metrics_tracker.save_query(
-    #     query_response=response,
-    #     query_text=request.query,
-    #     profile_id=profile.profile_id,
-    #     config_snapshot=profile.model_dump(mode="json"),
-    #     retrieved_chunk_ids=[s.url for s in response.sources],  # Using URL as temp ID
-    # )
+    await app_state.metrics_tracker.save_query(
+        query_response=response,
+        query_text=request.query,
+        profile_id=profile.profile_id,
+        config_snapshot=profile.model_dump(mode="json"),
+        retrieved_chunk_ids=[],  # Will be populated after we extract chunk IDs properly
+    )
 
     # Format response
     return {

@@ -1,8 +1,6 @@
 """Local embedding provider using sentence-transformers."""
 
-import time
 from typing import List
-
 import torch
 from sentence_transformers import SentenceTransformer
 

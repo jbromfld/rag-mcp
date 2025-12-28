@@ -19,3 +19,4 @@ DROP FUNCTION IF EXISTS search_embeddings_hybrid CASCADE;
 DROP FUNCTION IF EXISTS update_embedding_quality CASCADE;
 
 -- Note: Extensions are kept (uuid-ossp, vector, pg_trgm)
+

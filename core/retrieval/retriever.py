@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from config.models import RetrievalConfig
@@ -94,11 +94,17 @@ class Retriever:
         boosted_results = self._apply_metadata_boosting(search_results)
 
         # Filter by relevance threshold
-        if self.config.relevance_threshold:
+        # Note: For hybrid search with RRF, scores are typically very small (0.01-0.05)
+        # Only apply threshold for pure vector search or when threshold is reasonable
+        if self.config.relevance_threshold and not self.config.hybrid_search:
             boosted_results = [
                 r for r in boosted_results
                 if r.boosted_score >= self.config.relevance_threshold
             ]
+        elif self.config.relevance_threshold and self.config.hybrid_search:
+            # For hybrid search with RRF, use a much lower threshold
+            # or skip threshold filtering entirely
+            pass  # Skip relevance filtering for hybrid search with RRF
 
         # Re-rank by boosted score
         boosted_results.sort(key=lambda x: x.boosted_score, reverse=True)

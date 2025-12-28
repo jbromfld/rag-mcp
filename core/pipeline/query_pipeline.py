@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from config.models import ConfigurationProfile, GenerationConfig
+from config.models import ConfigurationProfile
 from core.providers.base import EmbeddingProvider, LLMProvider, VectorStore
 from core.retrieval import Retriever
 
