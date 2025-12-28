@@ -437,8 +437,105 @@ async def list_profiles():
     return {"profiles": profiles}
 
 
+@app.get("/report")
+async def comparison_report():
+    """Get comparison report across all profiles.
+
+    Compares:
+    - Latency (retrieval, LLM, total)
+    - Cost per query
+    - User satisfaction (feedback scores)
+    - Chunk sizes and embedding dimensions
+    """
+    async with app_state.db_pool.acquire() as conn:
+        # Get profile performance metrics
+        rows = await conn.fetch(
+            """
+            SELECT
+                cp.profile_name,
+                cp.version,
+                -- Configuration
+                (cp.chunking_config->>'chunk_size')::int as chunk_size,
+                (cp.provider_config->'embedding'->>'dimension')::int as embedding_dim,
+                (cp.provider_config->'embedding'->>'model') as embedding_model,
+                (cp.provider_config->'llm'->>'model') as llm_model,
+                (cp.retrieval_config->>'top_k')::int as top_k,
+                (cp.retrieval_config->>'hybrid_search')::boolean as hybrid_search,
+                -- Query metrics
+                COUNT(DISTINCT q.query_id) as total_queries,
+                ROUND(AVG(m.latency_retrieval_ms)::numeric, 2) as avg_retrieval_ms,
+                ROUND(AVG(m.latency_llm_ms)::numeric, 2) as avg_llm_ms,
+                ROUND(AVG(m.latency_total_ms)::numeric, 2) as avg_total_ms,
+                ROUND(AVG(m.cost_total_usd)::numeric, 6) as avg_cost_usd,
+                ROUND(AVG(m.num_chunks_retrieved)::numeric, 1) as avg_chunks,
+                ROUND(AVG(m.avg_chunk_score)::numeric, 3) as avg_relevance,
+                -- Feedback metrics
+                COUNT(f.feedback_id) as feedback_count,
+                ROUND(AVG(f.score)::numeric, 2) as avg_satisfaction,
+                COUNT(f.feedback_id) FILTER (WHERE f.score >= 7) as satisfied_count,
+                ROUND(
+                    CASE
+                        WHEN COUNT(f.feedback_id) > 0
+                        THEN COUNT(f.feedback_id) FILTER (WHERE f.score >= 7)::numeric / COUNT(f.feedback_id)::numeric
+                        ELSE NULL
+                    END,
+                    3
+                ) as satisfaction_rate
+            FROM configuration_profiles cp
+            LEFT JOIN queries q ON cp.profile_id = q.profile_id
+            LEFT JOIN metrics m ON q.query_id = m.query_id
+            LEFT JOIN feedback f ON q.query_id = f.query_id
+            WHERE cp.is_active = true OR cp.profile_id IS NULL
+            GROUP BY
+                cp.profile_id,
+                cp.profile_name,
+                cp.version,
+                cp.chunking_config,
+                cp.provider_config,
+                cp.retrieval_config
+            ORDER BY total_queries DESC, avg_satisfaction DESC
+            """
+        )
+
+        profiles = []
+        for row in rows:
+            profiles.append({
+                "profile": row["profile_name"],
+                "version": row["version"],
+                "config": {
+                    "chunk_size": row["chunk_size"],
+                    "embedding_dim": row["embedding_dim"],
+                    "embedding_model": row["embedding_model"],
+                    "llm_model": row["llm_model"],
+                    "top_k": row["top_k"],
+                    "hybrid_search": row["hybrid_search"],
+                },
+                "performance": {
+                    "total_queries": row["total_queries"],
+                    "avg_retrieval_ms": float(row["avg_retrieval_ms"]) if row["avg_retrieval_ms"] else None,
+                    "avg_llm_ms": float(row["avg_llm_ms"]) if row["avg_llm_ms"] else None,
+                    "avg_total_ms": float(row["avg_total_ms"]) if row["avg_total_ms"] else None,
+                    "avg_cost_usd": float(row["avg_cost_usd"]) if row["avg_cost_usd"] else 0.0,
+                    "avg_chunks_retrieved": float(row["avg_chunks"]) if row["avg_chunks"] else None,
+                    "avg_relevance_score": float(row["avg_relevance"]) if row["avg_relevance"] else None,
+                },
+                "feedback": {
+                    "total_feedback": row["feedback_count"],
+                    "avg_satisfaction": float(row["avg_satisfaction"]) if row["avg_satisfaction"] else None,
+                    "satisfied_count": row["satisfied_count"],
+                    "satisfaction_rate": float(row["satisfaction_rate"]) if row["satisfaction_rate"] else None,
+                },
+            })
+
+    return {
+        "report_generated_at": None,  # Will be set by response
+        "total_profiles": len(profiles),
+        "profiles": profiles,
+    }
+
+
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
+async def global_exception_handler(_request: Request, exc: Exception):
     """Global exception handler."""
     print(f"Error processing request: {exc}")
     return JSONResponse(

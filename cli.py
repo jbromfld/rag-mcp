@@ -88,6 +88,58 @@ def profiles():
     pretty_print(resp)
 
 
+def report():
+    """Show comparison report."""
+    resp = requests.get(f"{BASE_URL}/report")
+    if resp.status_code != 200:
+        pretty_print(resp)
+        return
+
+    data = resp.json()
+    print("\n" + "="*80)
+    print("CONFIGURATION COMPARISON REPORT".center(80))
+    print("="*80 + "\n")
+
+    if data["total_profiles"] == 0:
+        print("No profiles with queries found. Run some queries first!")
+        return
+
+    for p in data["profiles"]:
+        cfg = p["config"]
+        perf = p["performance"]
+        fb = p["feedback"]
+
+        print(f"Profile: {p['profile']} (v{p['version']})")
+        print("-" * 80)
+
+        # Configuration
+        print(f"  Config: chunk_size={cfg['chunk_size']}, embed_dim={cfg['embedding_dim']}, top_k={cfg['top_k']}")
+        print(f"          embedding={cfg['embedding_model']}, llm={cfg['llm_model']}")
+        print(f"          hybrid_search={'yes' if cfg['hybrid_search'] else 'no'}")
+
+        # Performance
+        print(f"\n  Performance: {perf['total_queries']} queries")
+        if perf['avg_total_ms']:
+            print(f"    Latency: {perf['avg_total_ms']:.0f}ms total = {perf['avg_retrieval_ms']:.0f}ms retrieval + {perf['avg_llm_ms']:.0f}ms LLM")
+        if perf['avg_cost_usd'] is not None:
+            cost_per_1k = perf['avg_cost_usd'] * 1000
+            print(f"    Cost: ${perf['avg_cost_usd']:.6f}/query (${cost_per_1k:.3f}/1K queries)")
+        if perf['avg_relevance_score']:
+            print(f"    Quality: {perf['avg_relevance_score']:.3f} relevance, {perf['avg_chunks_retrieved']:.1f} chunks avg")
+
+        # Feedback
+        if fb['total_feedback'] > 0:
+            print(f"\n  User Satisfaction: {fb['avg_satisfaction']:.1f}/10 average ({fb['total_feedback']} ratings)")
+            sat_pct = fb['satisfaction_rate'] * 100
+            print(f"                     {fb['satisfied_count']}/{fb['total_feedback']} satisfied (≥7) = {sat_pct:.0f}%")
+        else:
+            print(f"\n  User Satisfaction: No feedback yet")
+
+        print("\n")
+
+    print("="*80)
+
+
 def main():
     """Main CLI entry point."""
     if len(sys.argv) < 2:
@@ -100,6 +152,7 @@ def main():
         print("  feedback <id> <score> [comment] - Submit feedback (score 0-10)")
         print("  metrics                         - View metrics")
         print("  profiles                        - List profiles")
+        print("  report                          - Compare all profiles")
         print("\nExamples:")
         print("  python cli.py health")
         print("  python cli.py ingest https://example.com")
@@ -142,6 +195,8 @@ def main():
             metrics()
         elif cmd == "profiles":
             profiles()
+        elif cmd == "report":
+            report()
         else:
             print(f"Unknown command: {cmd}")
             print("Run without arguments for help")

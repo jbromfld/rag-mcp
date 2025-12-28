@@ -23,8 +23,14 @@ class OllamaProvider(LLMProvider):
         Args:
             config: LLM provider configuration
         """
+        import os
+
         self.config = config
-        self.base_url = config.base_url or "http://localhost:11434"
+
+        # Prefer environment variable over config (allows switching local/container)
+        # Priority: ENV > config > default
+        self.base_url = os.getenv('OLLAMA_BASE_URL') or config.base_url or "http://localhost:11434"
+
         self.model = config.model
         self.temperature = config.temperature
         self.max_tokens = config.max_tokens
@@ -42,7 +48,16 @@ class OllamaProvider(LLMProvider):
             aiohttp ClientSession
         """
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            # Create session with generous timeout for LLM generation
+            timeout = aiohttp.ClientTimeout(
+                total=300,  # 5 minutes total
+                connect=30,  # 30s to establish connection
+                sock_read=180  # 3 minutes to read response
+            )
+            self.session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=aiohttp.TCPConnector(limit=10, ttl_dns_cache=300)
+            )
         return self.session
 
     async def generate(

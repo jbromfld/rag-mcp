@@ -206,7 +206,7 @@ class ConfigLoader:
                 model=s.ollama_model,
                 temperature=s.ollama_temperature,
                 max_tokens=s.ollama_max_tokens,
-                base_url=s.ollama_base_url,
+                base_url=None,  # Don't store URL - read from ENV at runtime
             )
         elif s.llm_provider == "vertex":
             llm = LLMProviderConfig(

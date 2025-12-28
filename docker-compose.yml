@@ -40,15 +40,15 @@ services:
         "-c",
         "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL} && wait $!",
       ]
-    # restart: unless-stopped
-    # Uncomment if you have NVIDIA GPU
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    restart: unless-stopped
+  # Uncomment if you have NVIDIA GPU
+  # deploy:
+  #   resources:
+  #     reservations:
+  #       devices:
+  #         - driver: nvidia
+  #           count: 1
+  #           capabilities: [gpu]
 
   # RAG Testing API
   api:
