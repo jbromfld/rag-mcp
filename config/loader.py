@@ -228,6 +228,37 @@ class ConfigLoader:
                 api_version=s.azure_openai_api_version,
                 deployment_name=s.azure_llm_deployment,
             )
+        elif s.llm_provider == "openai":
+            llm = LLMProviderConfig(
+                provider="openai",
+                model=s.openai_model,
+                temperature=s.openai_temperature,
+                max_tokens=s.openai_max_tokens,
+                api_key=s.openai_api_key,
+            )
+        elif s.llm_provider == "bedrock":
+            llm = LLMProviderConfig(
+                provider="bedrock",
+                model=s.bedrock_model,
+                temperature=s.bedrock_temperature,
+                max_tokens=s.bedrock_max_tokens,
+            )
+        elif s.llm_provider == "claude":
+            llm = LLMProviderConfig(
+                provider="claude",
+                model=s.claude_model,
+                temperature=s.claude_temperature,
+                max_tokens=s.claude_max_tokens,
+                api_key=s.anthropic_api_key,
+            )
+        elif s.llm_provider == "copilot":
+            llm = LLMProviderConfig(
+                provider="copilot",
+                model=s.copilot_model,
+                temperature=s.copilot_temperature,
+                max_tokens=s.copilot_max_tokens,
+                api_key=s.copilot_api_key,
+            )
         else:
             raise ValueError(f"Unknown LLM provider: {s.llm_provider}")
 

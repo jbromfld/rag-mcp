@@ -35,7 +35,7 @@ def ingest(url):
     """Ingest a single document from URL."""
     resp = requests.post(
         f"{BASE_URL}/ingest",
-        json={"url": url, "profile": "default"}
+        json={"url": url, "profile": "baseline-local"}
     )
     pretty_print(resp)
 
@@ -48,20 +48,20 @@ def ringest(url, depth=3, max_pages=50):
             "url": url,
             "depth": depth,
             "max_pages": max_pages,
-            "profile": "default"
+            "profile": "baseline-local"
         }
     )
     pretty_print(resp)
 
 
-def query(text, top_k=5):
+def query(text, top_k=5, profile="baseline-local"):
     """Query the knowledge base."""
     resp = requests.post(
         f"{BASE_URL}/query",
         json={
             "query": text,
             "top_k": top_k,
-            "profile": "default"
+            "profile": profile
         }
     )
     pretty_print(resp)
@@ -86,6 +86,15 @@ def profiles():
     """List configuration profiles."""
     resp = requests.get(f"{BASE_URL}/profiles")
     pretty_print(resp)
+
+
+def sync_profiles():
+    """Sync profile models from .env to database."""
+    import subprocess
+    result = subprocess.run(["python", "scripts/sync_profiles.py"], capture_output=True, text=True)
+    print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
 
 
 def report():
@@ -148,10 +157,11 @@ def main():
         print("  health                          - Check API health")
         print("  ingest <url>                    - Ingest single page")
         print("  ringest <url> [depth] [max]     - Recursive crawl (default: depth=3, max=50)")
-        print("  query <text> [top_k]            - Query knowledge base (default: top_k=5)")
+        print("  query <text> [--profile <name>] - Query knowledge base")
         print("  feedback <id> <score> [comment] - Submit feedback (score 0-10)")
         print("  metrics                         - View metrics")
         print("  profiles                        - List profiles")
+        print("  sync                            - Sync profile models from .env")
         print("  report                          - Compare all profiles")
         print("\nExamples:")
         print("  python cli.py health")
@@ -181,10 +191,14 @@ def main():
             ringest(sys.argv[2], depth, max_pages)
         elif cmd == "query":
             if len(sys.argv) < 3:
-                print("Usage: query <text> [top_k]")
+                print("Usage: query <text> [--profile <name>]")
                 return
-            top_k = int(sys.argv[3]) if len(sys.argv) > 3 else 5
-            query(sys.argv[2], top_k)
+            profile = "baseline-local"
+            if "--profile" in sys.argv:
+                idx = sys.argv.index("--profile")
+                if idx + 1 < len(sys.argv):
+                    profile = sys.argv[idx + 1]
+            query(sys.argv[2], profile=profile)
         elif cmd == "feedback":
             if len(sys.argv) < 4:
                 print("Usage: feedback <query_id> <score> [comment]")
@@ -195,6 +209,8 @@ def main():
             metrics()
         elif cmd == "profiles":
             profiles()
+        elif cmd == "sync":
+            sync_profiles()
         elif cmd == "report":
             report()
         else:

@@ -25,13 +25,16 @@ docker-compose up -d
 # 2. Install CLI tool
 pip install requests
 
-# 3. Ingest documentation
+# 3. Sync profile models from .env (optional)
+python cli.py sync
+
+# 4. Ingest documentation
 python cli.py ringest https://docs.python.org/3/ 2 50
 
-# 4. Query
+# 5. Query
 python cli.py query "What is Python?"
 
-# 5. View metrics
+# 6. View metrics
 python cli.py metrics
 ```
 
@@ -63,6 +66,22 @@ python cli.py metrics --profile cloud-llm
 ```
 
 **What gets tested**: Embedding models, embedding dimensions, LLMs, chunk sizes, retrieval strategies, generation parameters.
+
+**Syncing Profile Models**: Update profile models from .env file:
+
+```bash
+# After changing models in .env, sync to database
+python cli.py sync
+
+# This updates:
+# - openai-gpt4o → uses OPENAI_MODEL from .env
+# - claude-sonnet → uses CLAUDE_MODEL from .env
+# - bedrock-claude → uses BEDROCK_MODEL from .env
+# - copilot-gpt4o → uses COPILOT_MODEL from .env
+# - baseline-local → uses OLLAMA_MODEL from .env
+```
+
+**Note**: profiles.sql creates baseline profiles. Use `sync` to update them with your current .env values.
 
 ---
 

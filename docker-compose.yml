@@ -1,5 +1,6 @@
 services:
-  # PostgreSQL with pgvector extension
+  # RAG Testing API
+  # PostgreSQL with pgvector extension - comment if using local PostgreSQL
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag-testing-postgres
@@ -21,49 +22,27 @@ services:
     networks:
       - rag-network
     restart: unless-stopped
-
-  # Ollama (Local LLM)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: rag-testing-ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-    networks:
-      - rag-network
-    entrypoint:
-      [
-        "/bin/bash",
-        "-c",
-        "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL} && wait $!",
-      ]
-    restart: unless-stopped
-  # Uncomment if you have NVIDIA GPU
-  # deploy:
-  #   resources:
-  #     reservations:
-  #       devices:
-  #         - driver: nvidia
-  #           count: 1
-  #           capabilities: [gpu]
-
-  # RAG Testing API
   api:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: rag-testing-api
     environment:
-      - POSTGRES_HOST=postgres
+      - POSTGRES_HOST=postgres # Connect to postgres container via Docker network
+      # - POSTGRES_HOST=host.docker.internal # Connect to host machine's PostgreSQL
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434 # Connect to host machine's Ollama
       - ENVIRONMENT=docker
+      # Cloud provider API keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - COPILOT_API_KEY=${COPILOT_API_KEY}
     ports:
       - "8000:8000"
     volumes:
@@ -74,9 +53,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      ollama:
-        condition: service_started # Just wait for Ollama to start, not be healthy
-    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Enable host.docker.internal on Linux
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Optional: Elasticsearch (if you want to compare with pgvector)
@@ -96,8 +74,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  ollama_data:
     driver: local
   embeddings_cache:
     driver: local

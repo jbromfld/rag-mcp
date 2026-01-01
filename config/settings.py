@@ -141,6 +141,33 @@ class Settings(BaseSettings):
     azure_temperature: float = Field(default=0.7, alias="AZURE_TEMPERATURE")
     azure_max_tokens: int = Field(default=2000, alias="AZURE_MAX_TOKENS")
 
+    # OpenAI (Direct API)
+    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
+    openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
+    openai_temperature: float = Field(default=0.7, alias="OPENAI_TEMPERATURE")
+    openai_max_tokens: int = Field(default=2000, alias="OPENAI_MAX_TOKENS")
+    openai_organization: Optional[str] = Field(default=None, alias="OPENAI_ORGANIZATION")
+
+    # AWS Bedrock
+    aws_region: str = Field(default="us-east-1", alias="AWS_REGION")
+    aws_access_key_id: Optional[str] = Field(default=None, alias="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: Optional[str] = Field(default=None, alias="AWS_SECRET_ACCESS_KEY")
+    bedrock_model: str = Field(default="anthropic.claude-3-5-sonnet-20241022-v2:0", alias="BEDROCK_MODEL")
+    bedrock_temperature: float = Field(default=0.7, alias="BEDROCK_TEMPERATURE")
+    bedrock_max_tokens: int = Field(default=2000, alias="BEDROCK_MAX_TOKENS")
+
+    # Anthropic Claude (Direct API)
+    anthropic_api_key: Optional[str] = Field(default=None, alias="ANTHROPIC_API_KEY")
+    claude_model: str = Field(default="claude-3-5-sonnet-20241022", alias="CLAUDE_MODEL")
+    claude_temperature: float = Field(default=0.7, alias="CLAUDE_TEMPERATURE")
+    claude_max_tokens: int = Field(default=2000, alias="CLAUDE_MAX_TOKENS")
+
+    # GitHub Copilot
+    copilot_api_key: Optional[str] = Field(default=None, alias="COPILOT_API_KEY")
+    copilot_model: str = Field(default="gpt-4o", alias="COPILOT_MODEL")
+    copilot_temperature: float = Field(default=0.7, alias="COPILOT_TEMPERATURE")
+    copilot_max_tokens: int = Field(default=2000, alias="COPILOT_MAX_TOKENS")
+
     # ============================================
     # Chunking Configuration
     # ============================================

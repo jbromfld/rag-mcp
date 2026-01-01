@@ -77,6 +77,26 @@ class ProviderFactory:
 
             return AzureLLMProvider(config)
 
+        elif config.provider == "openai":
+            from .llm.openai import OpenAIProvider
+
+            return OpenAIProvider(config)
+
+        elif config.provider == "bedrock":
+            from .llm.bedrock import BedrockProvider
+
+            return BedrockProvider(config)
+
+        elif config.provider == "claude":
+            from .llm.claude import ClaudeProvider
+
+            return ClaudeProvider(config)
+
+        elif config.provider == "copilot":
+            from .llm.copilot import CopilotProvider
+
+            return CopilotProvider(config)
+
         else:
             raise ValueError(f"Unknown LLM provider: {config.provider}")
 

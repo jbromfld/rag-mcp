@@ -22,12 +22,20 @@ huggingface-hub==0.23.0
 httpx==0.25.2
 aiohttp==3.9.1
 
+# OpenAI (Direct API)
+openai==1.54.0
+
+# Anthropic Claude
+anthropic==0.39.0
+
+# AWS Bedrock
+boto3==1.35.0
+
 # GCP Vertex AI (optional - uncomment if needed)
 # google-cloud-aiplatform==1.38.1
 # google-auth==2.25.2
 
-# Azure OpenAI (optional - uncomment if needed)
-# openai==1.3.7
+# Azure OpenAI (uses openai package above)
 # azure-identity==1.15.0
 
 # Web Scraping & Document Processing

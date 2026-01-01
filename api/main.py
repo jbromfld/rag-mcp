@@ -118,7 +118,7 @@ class IngestRequest(BaseModel):
     content: Optional[str] = Field(None, description="Direct content")
     title: Optional[str] = Field(None, description="Document title")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
-    profile: str = Field("default", description="Configuration profile name")
+    profile: str = Field("baseline-local", description="Configuration profile name")
     # Crawling parameters
     depth: int = Field(1, ge=1, le=5, description="Maximum crawl depth (1 = only URL, 2+ = recursive)")
     max_pages: int = Field(50, ge=1, le=500, description="Maximum pages to scrape")
@@ -132,7 +132,8 @@ class QueryRequestAPI(BaseModel):
     query: str = Field(..., description="Question to answer")
     top_k: Optional[int] = Field(None, description="Number of results to retrieve")
     filters: Optional[Dict[str, Any]] = Field(None, description="Metadata filters")
-    profile: str = Field("default", description="Configuration profile name")
+    profile: str = Field("baseline-local", description="Configuration profile name")
+    retrieve_only: bool = Field(False, description="Skip LLM generation, return only retrieved chunks")
 
 
 class FeedbackRequest(BaseModel):
@@ -160,17 +161,6 @@ async def get_profile(profile_name: str) -> ConfigurationProfile:
     Raises:
         HTTPException: If profile not found
     """
-    # For "default" profile, check if it exists in DB, if not create and save it
-    if profile_name == "default":
-        try:
-            # Try to get existing default profile from database
-            return await app_state.config_loader.get_profile_by_name("default")
-        except ValueError:
-            # Doesn't exist, create and save it
-            profile = app_state.config_loader.create_default_profile()
-            await app_state.config_loader.save_profile(profile)
-            return profile
-
     try:
         return await app_state.config_loader.get_profile_by_name(profile_name)
     except ValueError as e:
@@ -308,6 +298,111 @@ async def query(request: QueryRequestAPI):
         filters=request.filters,
     )
 
+    # Retrieve-only mode: Skip LLM generation, return chunks for Copilot to synthesize
+    if request.retrieve_only:
+        import time
+        import uuid
+        start_time = time.time()
+
+        # Only do retrieval
+        from core.pipeline.query_pipeline import Retriever
+        retriever = Retriever(
+            vector_store=vector_store,
+            embedding_provider=embedding_provider,
+            config=profile.retrieval_config,
+        )
+
+        retrieved_results = await retriever.retrieve(
+            query=request.query,
+            top_k=request.top_k or profile.retrieval_config.top_k,
+            filters=request.filters,
+        )
+
+        retrieval_time_ms = (time.time() - start_time) * 1000
+
+        # Generate query_id for feedback tracking
+        query_id = uuid.uuid4()
+
+        # Format chunks for Copilot
+        chunks = [
+            {
+                "citation": f"[{i+1}]",
+                "content": result.content,
+                "title": result.metadata.get("title", "Unknown"),
+                "url": result.metadata.get("url", ""),
+                "score": result.boosted_score,
+                "section": result.metadata.get("section"),
+                "last_modified": result.metadata.get("last_modified"),
+            }
+            for i, result in enumerate(retrieved_results)
+        ]
+
+        # Save query and metrics for feedback tracking
+        try:
+            import json
+            async with app_state.db_pool.acquire() as conn:
+                # Insert into queries table
+                await conn.execute(
+                    """
+                    INSERT INTO queries (
+                        query_id, query_text, profile_id, config_snapshot,
+                        response, retrieved_chunks, created_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+                    """,
+                    query_id,
+                    request.query,
+                    profile.profile_id,
+                    json.dumps(profile.model_dump(mode="json")),
+                    json.dumps({"chunks": chunks}),  # Store chunks in response field
+                    [],  # Empty retrieved_chunks array
+                )
+
+                # Insert into metrics table
+                await conn.execute(
+                    """
+                    INSERT INTO metrics (
+                        metric_id, query_id,
+                        latency_embedding_ms, latency_retrieval_ms,
+                        latency_llm_ms, latency_total_ms,
+                        cost_embedding_usd, cost_llm_usd, cost_total_usd,
+                        num_chunks_retrieved, num_chunks_used, avg_chunk_score,
+                        prompt_tokens, completion_tokens, total_tokens,
+                        created_at
+                    ) VALUES (
+                        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8,
+                        $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP
+                    )
+                    """,
+                    query_id,
+                    0.0,  # No embedding latency (cached in retriever)
+                    retrieval_time_ms,
+                    0.0,  # No LLM latency
+                    retrieval_time_ms,  # Total latency = retrieval only
+                    0.0,  # No embedding cost
+                    0.0,  # No LLM cost
+                    0.0,  # No total cost
+                    len(chunks),  # Number of chunks retrieved
+                    0,  # No chunks used by LLM
+                    sum(c["score"] for c in chunks) / len(chunks) if chunks else 0.0,  # Average score
+                    0,  # No prompt tokens
+                    0,  # No completion tokens
+                    0,  # No total tokens
+                )
+        except Exception as e:
+            # Log error but don't fail the request
+            print(f"Warning: Failed to save retrieve_only query: {e}")
+
+        return {
+            "query_id": str(query_id),
+            "chunks": chunks,
+            "metrics": {
+                "latency_ms": retrieval_time_ms,
+                "chunks_retrieved": len(chunks),
+                "profile": request.profile,
+            }
+        }
+
+    # Standard mode: Full RAG pipeline with LLM generation
     response = await pipeline.process_query(query_request)
 
     # Save metrics to database
@@ -421,18 +516,6 @@ async def list_profiles():
         }
         for row in rows
     ]
-
-    # Add default profile
-    profiles.insert(
-        0,
-        {
-            "name": "default",
-            "version": "1.0.0",
-            "description": "Default configuration from environment variables",
-            "created_at": None,
-            "is_active": True,
-        },
-    )
 
     return {"profiles": profiles}
 

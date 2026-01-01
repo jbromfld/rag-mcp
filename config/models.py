@@ -28,6 +28,10 @@ class EmbeddingProvider(str, Enum):
     LOCAL = "local"
     VERTEX = "vertex"
     AZURE = "azure"
+    OPENAI = "openai"
+    BEDROCK = "bedrock"
+    CLAUDE = "claude"
+    COPILOT = "copilot"
 
 
 class LLMProvider(str, Enum):
@@ -36,6 +40,10 @@ class LLMProvider(str, Enum):
     OLLAMA = "ollama"
     VERTEX = "vertex"
     AZURE = "azure"
+    OPENAI = "openai"
+    BEDROCK = "bedrock"
+    CLAUDE = "claude"
+    COPILOT = "copilot"
 
 
 class ChunkStrategy(str, Enum):
@@ -168,8 +176,10 @@ class ChunkingConfig(BaseModel):
     """Document chunking configuration."""
 
     strategy: ChunkStrategy = ChunkStrategy.RECURSIVE
-    chunk_size: int = Field(default=300, ge=50, le=1000, description="Words per chunk")
-    chunk_overlap: int = Field(default=30, ge=0, le=200, description="Overlap in words")
+    chunk_size: int = Field(default=300, ge=50, le=1000,
+                            description="Words per chunk")
+    chunk_overlap: int = Field(
+        default=30, ge=0, le=200, description="Overlap in words")
     min_chunk_size: int = Field(default=50, ge=10, le=500)
     max_chunk_size: int = Field(default=500, ge=100, le=2000)
 
@@ -287,7 +297,8 @@ class ConfigurationProfile(BaseModel):
 
     profile_id: UUID = Field(default_factory=uuid4)
     profile_name: str = Field(..., min_length=1, max_length=100)
-    version: str = Field(..., pattern=r"^\d+\.\d+\.\d+$")  # Semantic versioning
+    # Semantic versioning
+    version: str = Field(..., pattern=r"^\d+\.\d+\.\d+$")
 
     parent_profile_id: Optional[UUID] = None
 
