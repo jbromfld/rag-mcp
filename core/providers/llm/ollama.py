@@ -29,7 +29,8 @@ class OllamaProvider(LLMProvider):
 
         # Prefer environment variable over config (allows switching local/container)
         # Priority: ENV > config > default
-        self.base_url = os.getenv('OLLAMA_BASE_URL') or config.base_url or "http://localhost:11434"
+        self.base_url = os.getenv(
+            'OLLAMA_BASE_URL') or config.base_url or "http://localhost:11434"
 
         self.model = config.model
         self.temperature = config.temperature
@@ -237,6 +238,11 @@ class OllamaProvider(LLMProvider):
         """
         return 0.0
 
+    async def close(self):
+        """Close HTTP session."""
+        if self.session and not self.session.closed:
+            await self.session.close()
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self._get_session()
@@ -244,5 +250,4 @@ class OllamaProvider(LLMProvider):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
-        if self.session and not self.session.closed:
-            await self.session.close()
+        await self.close()

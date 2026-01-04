@@ -1,6 +1,8 @@
 """Query processing pipeline orchestration."""
 
 import time
+import os
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -8,6 +10,10 @@ from uuid import UUID, uuid4
 from config.models import ConfigurationProfile
 from core.providers.base import EmbeddingProvider, LLMProvider, VectorStore
 from core.retrieval import Retriever
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logging.info(
+    f"Query pipeline initialized with log level: {logging.getLevelName(logging.getLogger().level)}")
 
 
 @dataclass
@@ -171,7 +177,8 @@ class QueryPipeline:
         llm_cost = llm_response.cost_usd
 
         avg_score = (
-            sum(r.boosted_score for r in retrieval_results) / len(retrieval_results)
+            sum(r.boosted_score for r in retrieval_results) /
+            len(retrieval_results)
             if retrieval_results
             else 0
         )
@@ -288,7 +295,25 @@ Answer:"""
 
         for result in retrieval_results:
             metadata = result.metadata
-            source_url = metadata.get("source_url", "")
+            source_url = metadata.get("source_url") or metadata.get("url", "")
+
+            # Normalize URL: strip whitespace and handle None/empty
+            if source_url:
+                source_url = str(source_url).strip()
+
+            # Skip entries without a valid source URL
+            if not source_url:
+                continue
+
+            logging.debug(f"Source URL: {source_url}")
+            logging.debug(f"Metadata: {metadata}")
+            logging.debug(f"Result: {result}")
+            logging.debug(f"Boosted score: {result.boosted_score}")
+            logging.debug(f"Score: {result.score}")
+            logging.debug(f"Rank: {result.rank}")
+            logging.debug(f"Recency boost: {result.recency_boost}")
+            logging.debug(f"Quality boost: {result.quality_boost}")
+            logging.debug(f"Popularity boost: {result.popularity_boost}")
 
             # If we've seen this URL before, only keep if this has a higher score
             if source_url in sources_by_url:
@@ -308,6 +333,9 @@ Answer:"""
                     "last_modified": metadata.get("last_modified"),
                 }
 
+        logging.debug(
+            f"Deduplicated sources_by_url keys: {list(sources_by_url.keys())}")
+
         # Convert to SourceInfo list with citations
         sources = []
         for i, (url, info) in enumerate(sources_by_url.items(), start=1):
@@ -320,5 +348,8 @@ Answer:"""
                 last_modified=info["last_modified"],
             )
             sources.append(source)
+
+        logging.debug(f'Answer: {answer}')
+        logging.debug(f'Sources: {sources}')
 
         return answer, sources

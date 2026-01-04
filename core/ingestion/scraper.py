@@ -1,6 +1,5 @@
 """Simple document scraper and processor."""
 
-import asyncio
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -146,7 +145,8 @@ class DocumentScraper:
             element.decompose()
 
         # Try to find main content area
-        main = soup.find("main") or soup.find("article") or soup.find("div", class_=re.compile(r"content|main|body"))
+        main = soup.find("main") or soup.find("article") or soup.find(
+            "div", class_=re.compile(r"content|main|body"))
 
         if main:
             text = main.get_text(separator="\n", strip=True)
@@ -236,7 +236,8 @@ class DocumentScraper:
         """
         # Initialize tracking sets
         visited: Set[str] = set()
-        to_visit: List[tuple[str, int, bool]] = [(start_url, 0, True)]  # (url, depth, is_start)
+        to_visit: List[tuple[str, int, bool]] = [
+            (start_url, 0, True)]  # (url, depth, is_start)
         scraped_docs: List[ScrapedDocument] = []
 
         # Get base domain for same-domain filtering
@@ -262,7 +263,8 @@ class DocumentScraper:
                             if link not in visited:
                                 to_visit.append((link, depth + 1, False))
                     except Exception as e:
-                        print(f"Warning: Failed to extract links from {url}: {e}")
+                        print(
+                            f"Warning: Failed to extract links from {url}: {e}")
                 continue
 
             # Scrape the page

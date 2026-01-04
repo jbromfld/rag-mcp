@@ -1,6 +1,8 @@
 """FastAPI application main entry point."""
 
 import asyncpg
+import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -15,6 +17,13 @@ from config.models import ConfigurationProfile
 from core.metrics import MetricsTracker
 from core.pipeline import IngestionPipeline, IngestionRequest, QueryPipeline, QueryRequest
 from core.providers import ProviderFactory
+
+# Setup logging
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -65,7 +74,8 @@ async def lifespan(app: FastAPI):
     print("Database connected!")
 
     # Initialize config loader
-    app_state.config_loader = ConfigLoader(app_state.settings, app_state.db_pool)
+    app_state.config_loader = ConfigLoader(
+        app_state.settings, app_state.db_pool)
     set_config_loader(app_state.config_loader)
 
     # Initialize provider factory
@@ -117,23 +127,33 @@ class IngestRequest(BaseModel):
     url: Optional[str] = Field(None, description="URL to scrape")
     content: Optional[str] = Field(None, description="Direct content")
     title: Optional[str] = Field(None, description="Document title")
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
-    profile: str = Field("baseline-local", description="Configuration profile name")
+    metadata: Optional[Dict[str, Any]] = Field(
+        None, description="Additional metadata")
+    profile: str = Field(
+        "baseline-local", description="Configuration profile name")
     # Crawling parameters
-    depth: int = Field(1, ge=1, le=5, description="Maximum crawl depth (1 = only URL, 2+ = recursive)")
-    max_pages: int = Field(50, ge=1, le=500, description="Maximum pages to scrape")
-    url_patterns: Optional[List[str]] = Field(None, description="URL patterns to include (glob syntax)")
-    exclude_patterns: Optional[List[str]] = Field(None, description="URL patterns to exclude (glob syntax)")
+    depth: int = Field(
+        1, ge=1, le=5, description="Maximum crawl depth (1 = only URL, 2+ = recursive)")
+    max_pages: int = Field(
+        50, ge=1, le=500, description="Maximum pages to scrape")
+    url_patterns: Optional[List[str]] = Field(
+        None, description="URL patterns to include (glob syntax)")
+    exclude_patterns: Optional[List[str]] = Field(
+        None, description="URL patterns to exclude (glob syntax)")
 
 
 class QueryRequestAPI(BaseModel):
     """Query endpoint request."""
 
     query: str = Field(..., description="Question to answer")
-    top_k: Optional[int] = Field(None, description="Number of results to retrieve")
-    filters: Optional[Dict[str, Any]] = Field(None, description="Metadata filters")
-    profile: str = Field("baseline-local", description="Configuration profile name")
-    retrieve_only: bool = Field(False, description="Skip LLM generation, return only retrieved chunks")
+    top_k: Optional[int] = Field(
+        None, description="Number of results to retrieve")
+    filters: Optional[Dict[str, Any]] = Field(
+        None, description="Metadata filters")
+    profile: str = Field(
+        "baseline-local", description="Configuration profile name")
+    retrieve_only: bool = Field(
+        False, description="Skip LLM generation, return only retrieved chunks")
 
 
 class FeedbackRequest(BaseModel):
@@ -164,7 +184,8 @@ async def get_profile(profile_name: str) -> ConfigurationProfile:
     try:
         return await app_state.config_loader.get_profile_by_name(profile_name)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=f"Profile '{profile_name}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Profile '{profile_name}' not found")
 
 
 # ============================================
@@ -269,6 +290,10 @@ async def query(request: QueryRequestAPI):
 
     Tracks all metrics to database.
     """
+    # Debug: Log query input
+    logger.debug(f"Query request received: query={request.query}, top_k={request.top_k}, "
+                 f"retrieve_only={request.retrieve_only}, filters={request.filters}, profile={request.profile}")
+
     # Get configuration profile
     profile = await get_profile(request.profile)
 
@@ -300,6 +325,8 @@ async def query(request: QueryRequestAPI):
 
     # Retrieve-only mode: Skip LLM generation, return chunks for Copilot to synthesize
     if request.retrieve_only:
+        logger.debug(
+            "Processing query in retrieve_only mode (no LLM generation)")
         import time
         import uuid
         start_time = time.time()
@@ -319,22 +346,60 @@ async def query(request: QueryRequestAPI):
         )
 
         retrieval_time_ms = (time.time() - start_time) * 1000
+        logger.debug(
+            f"Retrieval completed: {len(retrieved_results)} results in {retrieval_time_ms:.2f}ms")
 
         # Generate query_id for feedback tracking
         query_id = uuid.uuid4()
 
-        # Format chunks for Copilot
+        # Deduplicate chunks by source URL, keeping highest score for each unique URL
+        chunks_by_url = {}
+        for result in retrieved_results:
+            metadata = result.metadata
+            source_url = metadata.get("source_url") or metadata.get("url", "")
+
+            # Normalize URL: strip whitespace and handle None/empty
+            if source_url:
+                source_url = str(source_url).strip()
+
+            # Skip entries without a valid source URL
+            if not source_url:
+                continue
+
+            # If we've seen this URL before, only keep if this has a higher score
+            if source_url in chunks_by_url:
+                if result.boosted_score > chunks_by_url[source_url]["score"]:
+                    chunks_by_url[source_url] = {
+                        "content": result.content,
+                        "title": metadata.get("title", "Unknown"),
+                        "url": source_url,
+                        "score": result.boosted_score,
+                        "section": metadata.get("chunk_index"),
+                        "last_modified": metadata.get("last_modified"),
+                    }
+            else:
+                # First time seeing this URL
+                chunks_by_url[source_url] = {
+                    "content": result.content,
+                    "title": metadata.get("title", "Unknown"),
+                    "url": source_url,
+                    "score": result.boosted_score,
+                    "section": metadata.get("chunk_index"),
+                    "last_modified": metadata.get("last_modified"),
+                }
+
+        # Format chunks for Copilot with citations
         chunks = [
             {
                 "citation": f"[{i+1}]",
-                "content": result.content,
-                "title": result.metadata.get("title", "Unknown"),
-                "url": result.metadata.get("url", ""),
-                "score": result.boosted_score,
-                "section": result.metadata.get("section"),
-                "last_modified": result.metadata.get("last_modified"),
+                "content": chunk["content"],
+                "title": chunk["title"],
+                "url": chunk["url"],
+                "score": chunk["score"],
+                "section": chunk["section"],
+                "last_modified": chunk["last_modified"],
             }
-            for i, result in enumerate(retrieved_results)
+            for i, chunk in enumerate(chunks_by_url.values(), start=1)
         ]
 
         # Save query and metrics for feedback tracking
@@ -353,7 +418,8 @@ async def query(request: QueryRequestAPI):
                     request.query,
                     profile.profile_id,
                     json.dumps(profile.model_dump(mode="json")),
-                    json.dumps({"chunks": chunks}),  # Store chunks in response field
+                    # Store chunks in response field
+                    json.dumps({"chunks": chunks}),
                     [],  # Empty retrieved_chunks array
                 )
 
@@ -383,16 +449,17 @@ async def query(request: QueryRequestAPI):
                     0.0,  # No total cost
                     len(chunks),  # Number of chunks retrieved
                     0,  # No chunks used by LLM
-                    sum(c["score"] for c in chunks) / len(chunks) if chunks else 0.0,  # Average score
+                    sum(c["score"] for c in chunks) /
+                    len(chunks) if chunks else 0.0,  # Average score
                     0,  # No prompt tokens
                     0,  # No completion tokens
                     0,  # No total tokens
                 )
         except Exception as e:
             # Log error but don't fail the request
-            print(f"Warning: Failed to save retrieve_only query: {e}")
+            logger.warning(f"Failed to save retrieve_only query: {e}")
 
-        return {
+        response_data = {
             "query_id": str(query_id),
             "chunks": chunks,
             "metrics": {
@@ -402,8 +469,19 @@ async def query(request: QueryRequestAPI):
             }
         }
 
+        # Debug: Log response output
+        logger.debug(f"Retrieve-only response: query_id={query_id}, chunks_count={len(chunks)}, "
+                     f"latency_ms={retrieval_time_ms:.2f}")
+        logger.debug(
+            f"Retrieve-only chunks URLs: {[chunk.get('url', 'N/A') for chunk in chunks[:5]]}")
+
+        return response_data
+
     # Standard mode: Full RAG pipeline with LLM generation
+    logger.debug("Processing query in standard mode (with LLM generation)")
     response = await pipeline.process_query(query_request)
+    logger.debug(f"Query pipeline completed: query_id={response.query_id}, "
+                 f"sources_count={len(response.sources)}, latency_total_ms={response.metrics.latency_total_ms:.2f}")
 
     # Save metrics to database
     await app_state.metrics_tracker.save_query(
@@ -415,7 +493,7 @@ async def query(request: QueryRequestAPI):
     )
 
     # Format response
-    return {
+    response_data = {
         "query_id": str(response.query_id),
         "answer": response.answer,
         "sources": [
@@ -442,6 +520,14 @@ async def query(request: QueryRequestAPI):
             "version": response.profile_version,
         },
     }
+
+    # Debug: Log response output
+    logger.debug(f"Standard response: query_id={response.query_id}, answer_length={len(response.answer)}, "
+                 f"sources_count={len(response.sources)}, latency_total_ms={response.metrics.latency_total_ms:.2f}")
+    logger.debug(
+        f"Standard response sources URLs: {[s.url for s in response.sources[:5]]}")
+
+    return response_data
 
 
 @app.post("/feedback")

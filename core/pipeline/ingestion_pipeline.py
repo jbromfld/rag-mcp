@@ -135,7 +135,8 @@ class IngestionPipeline:
                 doc.metadata["profile_id"] = str(self.profile.profile_id)
 
                 # Chunk document
-                chunk_results = self.chunker.chunk_document(doc.content, doc.metadata)
+                chunk_results = self.chunker.chunk_document(
+                    doc.content, doc.metadata)
 
                 if chunk_results:
                     all_chunks.extend(chunk_results)
@@ -168,7 +169,7 @@ class IngestionPipeline:
                 chunks.append(chunk)
 
             # Step 5: Insert into vector store
-            inserted_count = await self.vector_store.insert_chunks(chunks)
+            await self.vector_store.insert_chunks(chunks)
 
             processing_time = (time.time() - start_time) * 1000
 
