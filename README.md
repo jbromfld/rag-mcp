@@ -1,474 +1,450 @@
-# RAG Testing: Knowledge Base Testing Pipeline
+# RAG Testing Pipeline
 
-A comprehensive testing pipeline for evaluating and comparing knowledge embedding and search systems across multiple providers (local, GCP, Azure).
+**A systematic testing framework for comparing RAG configurations, embedding models, LLMs, chunking strategies, and cloud providers.**
 
-## 🎯 Project Goal
+## 🎯 What Is This?
 
-Build a headless testing framework to systematically compare:
-- **Vector Stores**: PostgreSQL (pgvector), Elasticsearch, GCP Vertex AI, Azure Cognitive Search
-- **Embedding Models**: Local (sentence-transformers), GCP Vertex, Azure OpenAI
-- **LLMs**: Ollama (local), GCP Vertex AI (Gemini), Azure OpenAI (GPT-4)
+This is a **testing and experimentation pipeline** for RAG systems. Use it to answer questions like:
 
-With comprehensive metrics tracking: latency, cost, accuracy, and user feedback.
+- Should I use 768-dim or 1536-dim embeddings?
+- Is GPT-4 worth 50x the cost vs Llama 3.2?
+- What chunk size gives the best retrieval quality?
+- Do I need cloud providers or can I run locally?
+- How does user feedback improve retrieval over time?
 
----
-
-## ✨ Key Features
-
-- 🔌 **Multi-Provider Support**: Easy switching between local and cloud providers
-- 📊 **Comprehensive Metrics**: Track latency, cost, accuracy, and drift
-- 🔄 **Side-by-Side Comparison**: Test multiple configurations simultaneously
-- 💰 **Cost Tracking**: Per-query cost analysis across providers
-- 🎯 **Hybrid Search**: Combine vector (semantic) + keyword (BM25) search
-- 📝 **Feedback System**: 0-10 scoring with detailed analytics
-- 🧪 **Automated Testing**: Reproducible benchmark suites
-- 🚀 **FastAPI**: High-performance async API
+**This is NOT** a production RAG system. It's built for **systematic comparison and data-driven optimization**.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (5 minutes)
 
-### Prerequisites
-
-- Python 3.9+
-- Docker & Docker Compose
-- 8GB+ RAM (16GB recommended)
-
-### Setup (5 minutes)
+### Standalone Testing Mode
 
 ```bash
-# 1. Clone and setup
-git clone <repo-url>
-cd rag-testing
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# 2. Copy configuration template
-cp .env.example .env
-
-# 3. Start infrastructure (Elasticsearch, PostgreSQL, Ollama)
+# 1. Start infrastructure
 docker-compose up -d
 
-# 4. Initialize database
-python scripts/init_database.py
+# 2. Install CLI tool
+pip install requests
 
-# 5. Pull Ollama model
-docker exec -it rag-testing-ollama ollama pull llama3.2
+# 3. Sync profile models from .env (optional)
+python cli.py sync
 
-# 6. Start API server
-uvicorn api.main:app --reload --port 8000
+# 4. Ingest documentation
+python cli.py ringest https://docs.python.org/3/ 2 50
+
+# 5. Query
+python cli.py query "What is Python?"
+
+# 6. View metrics
+python cli.py metrics
 ```
 
-### Verify Setup
+**That's it!** You're now testing with the baseline profile (local pgvector + local embeddings + Ollama).
+
+### MCP Server Mode
+
+This RAG service can also be used as a **Model Context Protocol (MCP) server** where Copilot or other MCP clients handle text generation:
 
 ```bash
-# Check API health
-curl http://localhost:8000/health
+# 1. Start RAG service
+docker-compose up -d
 
-# Check system status
-curl http://localhost:8000/status
-```
-
----
-
-## 📖 Usage Examples
-
-### Ingest Documents
-
-```bash
-# Ingest a website
+# 2. Ingest documentation (uses 'default' profile)
 curl -X POST http://localhost:8000/ingest \
   -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.python.org/3/",
-    "depth": 2,
-    "max_pages": 50,
-    "provider_config": {
-      "vector_store": "elasticsearch",
-      "embedding_provider": "local",
-      "embedding_model": "all-mpnet-base-v2",
-      "embedding_dimension": 768
-    }
-  }'
+  -d '{"url": "https://docs.python.org/3/", "depth": 2, "profile": "default"}'
 
-# Check ingestion status
-curl http://localhost:8000/ingest/{job_id}
-```
-
-### Query Knowledge Base
-
-```bash
-# Query with local providers
+# 3. Query returns raw chunks (no LLM generation)
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
-  -d '{
-    "query": "How do I create a virtual environment in Python?",
-    "top_k": 5,
-    "provider_config": {
-      "vector_store": "elasticsearch",
-      "embedding_provider": "local",
-      "llm_provider": "ollama",
-      "llm_model": "llama3.2"
-    }
-  }'
+  -d '{"query": "What is asyncio?", "retrieve_only": true, "profile": "default"}'
+
+# 4. MCP client (e.g., Copilot) uses chunks to generate answer
 ```
 
-### Compare Providers
+**Key difference**: The `default` profile uses the `mcp` provider which skips LLM generation. The RAG service only does retrieval, and the MCP client synthesizes the final answer.
+
+---
+
+## 📊 Core Testing Features
+
+### 1. Configuration Profiles
+
+Test different RAG setups without changing code:
 
 ```bash
-# Compare multiple configurations side-by-side
-curl -X POST http://localhost:8000/compare \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "How to implement error handling in FastAPI?",
-    "configurations": [
-      {
-        "name": "local-baseline",
-        "vector_store": "elasticsearch",
-        "embedding_provider": "local",
-        "llm_provider": "ollama"
-      },
-      {
-        "name": "vertex-hybrid",
-        "vector_store": "elasticsearch",
-        "embedding_provider": "local",
-        "llm_provider": "vertex"
-      }
-    ]
-  }'
+# Available profiles:
+- default: MCP mode - retrieval only, external generation (FREE)
+- baseline-local: Local embeddings (768-dim) + Ollama (FREE)
+- high-dim-local: Local embeddings (1536-dim) + Ollama (FREE)
+- cloud-llm: Local embeddings + Gemini Flash (~$0.001/query)
+- full-vertex: Vertex embeddings + Gemini Pro (~$0.01/query)
+- azure-premium: Azure embeddings (3072-dim) + GPT-4 (~$0.05/query)
+
+# Query with different profiles
+python cli.py query "Explain asyncio" --profile baseline-local
+python cli.py query "Explain asyncio" --profile cloud-llm
+
+# Compare metrics
+python cli.py metrics --profile baseline-local
+python cli.py metrics --profile cloud-llm
 ```
 
-### Submit Feedback
+**What gets tested**: Embedding models, embedding dimensions, LLMs, chunk sizes, retrieval strategies, generation parameters.
+
+**Syncing Profile Models**: Update profile models from .env file:
 
 ```bash
-curl -X POST http://localhost:8000/feedback \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query_id": "550e8400-e29b-41d4-a716-446655440000",
-    "score": 8,
-    "comment": "Very helpful!"
-  }'
+# After changing models in .env, sync to database
+python cli.py sync
+
+# This updates:
+# - openai-gpt4o → uses OPENAI_MODEL from .env
+# - claude-sonnet → uses CLAUDE_MODEL from .env
+# - bedrock-claude → uses BEDROCK_MODEL from .env
+# - copilot-gpt4o → uses COPILOT_MODEL from .env
+# - baseline-local → uses OLLAMA_MODEL from .env
 ```
 
-### View Metrics
+**Note**: profiles.sql creates baseline profiles. Use `sync` to update them with your current .env values.
+
+---
+
+### 2. Feedback Loops
+
+User feedback improves retrieval quality over time:
 
 ```bash
-# Get metrics summary
-curl http://localhost:8000/metrics?start_date=2025-11-01&end_date=2025-11-23
+# Query returns a query_id
+python cli.py query "Python virtual environments"
 
-# Compare providers
-curl http://localhost:8000/metrics/compare
+# Submit feedback (0-10 scale)
+python cli.py feedback <query_id> 8
+
+# System automatically:
+# - Tracks which chunks were helpful
+# - Boosts high-rated chunks in future searches
+# - Penalizes low-rated chunks
+```
+
+**Result**: Better chunks rank higher over time based on actual user feedback.
+
+---
+
+### 3. Comprehensive Metrics
+
+Every query tracks:
+- **Latency**: Total time, embedding time, retrieval time, LLM time
+- **Cost**: Embedding cost, LLM cost, projected monthly cost
+- **Quality**: Chunk relevance scores, number of sources
+- **User Satisfaction**: Feedback scores (7+ = satisfied)
+
+```bash
+# View aggregated metrics
+python cli.py metrics
+
+# Database queries for deeper analysis
+docker exec rag-testing-postgres psql -U testuser -d rag_service
 ```
 
 ---
 
-## 📊 Provider Configurations
+### 4. Local vs Cloud Testing
 
-### Local with Elasticsearch (Zero Cost)
-
+**Start local (FREE)**:
 ```env
-VECTOR_STORE=elasticsearch
+VECTOR_STORE=postgresql
 EMBEDDING_PROVIDER=local
 EMBEDDING_MODEL=all-mpnet-base-v2
 LLM_PROVIDER=ollama
 OLLAMA_MODEL=llama3.2
 ```
 
-### Local with pgvector (Zero Cost, Simpler)
-
+**Add cloud when ready**:
 ```env
-VECTOR_STORE=postgres
-POSTGRES_URL=postgresql://kbuser:kbpass@localhost:5432/kb_metrics
-EMBEDDING_PROVIDER=local
-EMBEDDING_MODEL=all-mpnet-base-v2
-EMBEDDING_DIMENSION=768
-LLM_PROVIDER=ollama
-OLLAMA_MODEL=llama3.2
-```
-
-**Recommended**: pgvector consolidates metrics + vectors in one database!
-
-### GCP Vertex AI
-
-```env
-GCP_PROJECT=your-project-id
-GCP_REGION=us-central1
-VECTOR_STORE=elasticsearch  # or vertex
-EMBEDDING_PROVIDER=vertex
-EMBEDDING_MODEL=text-embedding-004
 LLM_PROVIDER=vertex
 VERTEX_MODEL=gemini-2.0-flash-exp
+GCP_PROJECT=your-project
 ```
 
-### Azure OpenAI
+**Cost tracking** shows exactly what you're spending.
 
-```env
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
-AZURE_OPENAI_KEY=your-key
-VECTOR_STORE=elasticsearch  # or azure
-EMBEDDING_PROVIDER=azure
-EMBEDDING_MODEL=text-embedding-3-large
-LLM_PROVIDER=azure
-AZURE_OPENAI_MODEL=gpt-4o
+---
+
+## 🧪 Common Testing Scenarios
+
+### Test Embedding Dimensions
+
+```bash
+# Does 1536-dim improve retrieval vs 768-dim?
+python cli.py query "How to use asyncio?" --profile baseline-local
+python cli.py query "How to use asyncio?" --profile high-dim-local
+
+# Compare avg_chunk_score in metrics
 ```
 
 ---
 
-## 🔍 Vector Store Comparison
+### Test Chunk Sizes
 
-| Feature | pgvector (PostgreSQL) | Elasticsearch |
-|---------|----------------------|---------------|
-| **Setup** | ✅ Very Simple | ⚠️ Additional service |
-| **Cost** | ✅ Zero (use existing DB) | ⚠️ Separate cluster |
-| **Performance (<1M)** | ✅ Excellent (20-50ms) | ✅ Excellent (10-40ms) |
-| **Performance (>1M)** | ⚠️ Good | ✅ Excellent |
-| **Hybrid Search** | ✅ Native (tsvector + vector) | ✅ Native (BM25 + vector) |
-| **ACID Transactions** | ✅ Yes | ❌ Eventual consistency |
-| **Operational Overhead** | ✅ Low (one DB) | ⚠️ Medium (two systems) |
-| **Recall@10** | ✅ 0.95-0.98 | ✅ 0.96-0.99 |
+```bash
+# Create profiles with chunk_size: 200, 400, 600, 800
+# Test with same queries
+# Analyze: context coherence, answer completeness
+```
 
-**Recommendation**: Start with **pgvector** for simplicity. Compare both empirically!
+---
+
+### Test LLM Quality
+
+```bash
+# Local (Ollama Llama 3.2) vs Cloud (GPT-4)
+python cli.py query "Explain Python decorators" --profile baseline-local
+python cli.py query "Explain Python decorators" --profile azure-premium
+
+# Compare: answer quality, latency, cost
+```
+
+---
+
+### Test Feedback Impact
+
+```bash
+# 1. Baseline query
+python cli.py query "Python async programming" > before.json
+
+# 2. Submit feedback for 10 related queries (rate sources)
+# Good sources: 8-10 | Bad sources: 0-4
+
+# 3. Query again
+python cli.py query "Python async programming" > after.json
+
+# 4. Compare: highly-rated chunks should rank higher
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-rag-testing/
-├── api/                    # FastAPI application
-│   ├── main.py            # API entry point
-│   ├── routers/           # API endpoints
-│   └── models/            # Request/response models
-├── core/                  # Core functionality
-│   ├── embeddings/        # Embedding providers
-│   ├── vector_stores/     # Vector store implementations
-│   ├── llm/              # LLM providers
-│   ├── ingestion/        # Web scraping & chunking
-│   └── retrieval/        # Hybrid search & RAG
-├── metrics/              # Metrics tracking
-│   ├── tracker.py        # Metrics collection
-│   ├── feedback_store.py # Feedback storage
-│   └── cost_calculator.py # Cost tracking
-├── evaluation/           # Testing & comparison
-│   ├── comparator.py     # Provider comparison
-│   ├── benchmark.py      # Benchmark suites
-│   └── reports.py        # Report generation
-├── tests/                # Test suites
-│   ├── unit/            # Unit tests
-│   ├── integration/     # Integration tests
-│   └── benchmarks/      # Performance benchmarks
-├── docs/                 # Documentation
-│   ├── PROJECT_OVERVIEW.md
-│   ├── API_REFERENCE.md
-│   ├── TESTING_STRATEGY.md
-│   └── CONFIGURATION.md
-├── docker-compose.yml    # Local infrastructure
-├── requirements.txt      # Python dependencies
-└── .env                  # Configuration
+rag-mcp/
+├── api/                     # FastAPI application
+│   └── main.py             # API endpoints: /ingest, /query, /feedback, /metrics
+├── core/
+│   ├── pipeline/           # Ingestion & query pipelines
+│   ├── providers/          # Vector stores, embeddings, LLMs
+│   └── retrieval/          # Hybrid search, metadata boosting
+├── config/                 # Configuration management
+│   ├── models.py          # Pydantic configuration models
+│   └── settings.py        # Environment settings
+├── db/
+│   ├── init.sql           # Database schema
+│   └── cleanup.sql        # Reset script
+├── docs/
+│   ├── TESTING_GUIDE.md   # ⭐ Complete testing guide
+│   └── API_REFERENCE.md   # API documentation
+├── cli.py                  # Simple CLI tool
+├── docker-compose.yml      # Local infrastructure
+└── .env                    # Configuration
 ```
 
 ---
 
-## 📚 Documentation
+## 📖 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | Complete project overview, architecture, and phases |
-| [API_REFERENCE.md](docs/API_REFERENCE.md) | Full API documentation with examples |
-| [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Testing approach, benchmarks, and evaluation |
-| [CONFIGURATION.md](docs/CONFIGURATION.md) | Configuration guide for all providers |
-| [CONFIGURATION_TRACKING.md](docs/CONFIGURATION_TRACKING.md) | Configuration versioning, tracking, and drift detection |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture and database schema |
-| [PARAMETER_REFERENCE.md](docs/PARAMETER_REFERENCE.md) | Quick reference for all trackable parameters |
-| [DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md) | Key architectural and implementation decisions |
-| [METADATA_STRATEGY.md](docs/METADATA_STRATEGY.md) | Metadata tracking, source attribution, and quality boosting |
-| [PGVECTOR_IMPLEMENTATION.md](docs/PGVECTOR_IMPLEMENTATION.md) | PostgreSQL + pgvector as consolidated vector store |
+- **[TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Complete guide to running experiments, using profiles, and analyzing results
+- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - API endpoints and examples
 
 ---
 
-## 🧪 Testing
+## � MCP Integration
 
-### Run Unit Tests
+### Using as an MCP Server
 
-```bash
-pytest tests/unit/ -v --cov=core --cov-report=html
+The RAG service exposes an API that can be integrated with Model Context Protocol (MCP) servers:
+
+**Profile**: Use `default` profile which uses the `mcp` provider
+- ✅ Supports ingestion (creates embeddings)
+- ✅ Supports retrieval (hybrid search with boosting)
+- ❌ Skips LLM generation (external client handles this)
+
+**Typical flow**:
+1. **Ingest**: Use `/ingest` endpoint with `profile: "default"`
+2. **Query**: Use `/query` endpoint with `retrieve_only: true` and `profile: "default"`
+3. **Response**: Returns raw chunks with citations and scores
+4. **Generation**: MCP client (e.g., Copilot) synthesizes the answer
+
+**Example MCP server integration**:
+```python
+# In your MCP server (e.g., kbsearch-mcp-server)
+async def search_knowledge_base(query: str, top_k: int = 5):
+    response = await http_client.post(
+        "http://localhost:8000/query",
+        json={
+            "query": query,
+            "top_k": top_k,
+            "retrieve_only": True,  # Skip LLM generation
+            "profile": "default"     # Use MCP profile
+        }
+    )
+    chunks = response.json()["chunks"]
+    # Return chunks to MCP client for generation
+    return chunks
 ```
 
-### Run Integration Tests
+**Benefits**:
+- RAG service focuses on retrieval quality
+- MCP client (Copilot) does generation with full context
+- Separation of concerns: retrieval vs generation
+- Zero LLM cost for RAG service
+
+---
+
+## �🔧 CLI Commands
 
 ```bash
-pytest tests/integration/ -v
+# Health check
+python cli.py health
+
+# Ingest a single page
+python cli.py ingest <url>
+
+# Recursive ingestion (depth, max_pages)
+python cli.py ringest <url> <depth> <max_pages>
+
+# Query with specific profile
+python cli.py query "<question>" --profile <profile_name>
+
+# Submit feedback
+python cli.py feedback <query_id> <score_0_10>
+
+# View metrics
+python cli.py metrics --profile <profile_name>
+
+# List profiles
+python cli.py profiles
 ```
 
-### Run Benchmarks
+---
 
-```bash
-# Latency benchmarks
-pytest tests/benchmarks/test_latency.py -v
+## 💰 Cost Comparison
 
-# Accuracy benchmarks
-pytest tests/benchmarks/test_accuracy.py -v
+### Per 1000 Queries
 
-# Cost analysis
-pytest tests/benchmarks/test_cost.py -v
+| Configuration | Embedding | LLM | Total | Quality |
+|---------------|-----------|-----|-------|---------|
+| **Local (Baseline)** | $0 | $0 | **$0** | Good |
+| **Hybrid (Local + Gemini Flash)** | $0 | ~$0.50 | **~$0.50** | Better |
+| **Full Vertex (Gemini Pro)** | ~$0.03 | ~$10 | **~$10** | Best (cloud) |
+| **Azure Premium (GPT-4)** | ~$0.13 | ~$50 | **~$50** | Premium |
 
-# Full provider comparison
-pytest tests/benchmarks/test_provider_comparison.py -v -s
+**Start local, test systematically, scale when needed.**
+
+---
+
+## 🗄️ Database Schema
+
+All testing data is stored in PostgreSQL:
+
+- `configuration_profiles` - Profile configurations with versioning
+- `embeddings` - Vector embeddings with metadata and quality scores
+- `queries` - All queries with configuration snapshot
+- `metrics` - Latency, cost, and quality metrics per query
+- `feedback` - User feedback (0-10 scoring)
+- `ingestion_jobs` - Ingestion tracking
+
+```sql
+-- View all profiles
+SELECT profile_name, version, description FROM configuration_profiles;
+
+-- Compare profile performance
+SELECT
+    cp.profile_name,
+    COUNT(q.query_id) as total_queries,
+    AVG(m.latency_total_ms) as avg_latency,
+    AVG(m.cost_total_usd) as avg_cost,
+    AVG(f.score) as avg_satisfaction
+FROM configuration_profiles cp
+LEFT JOIN queries q ON cp.profile_id = q.profile_id
+LEFT JOIN metrics m ON q.query_id = m.query_id
+LEFT JOIN feedback f ON q.query_id = f.query_id
+GROUP BY cp.profile_name;
 ```
 
 ---
 
-## 💰 Cost Estimates
-
-### Local Development
-- **Cost**: $0/month
-- **Hardware**: Your own compute
-
-### Cloud Testing (per 1000 queries)
-
-| Configuration | Embedding | Retrieval | LLM | Total |
-|---------------|-----------|-----------|-----|-------|
-| **Local (baseline)** | $0 | $0 | $0 | $0 |
-| **Local ES + Vertex Gemini** | $0 | $0 | ~$0.50 | ~$0.50 |
-| **Vertex Full** | ~$0.03 | ~$0.10 | ~$0.50 | ~$0.63 |
-| **Azure Full** | ~$0.05 | ~$0.20 | ~$2.00 | ~$2.25 |
-
-*Costs are approximate and vary based on usage patterns*
-
----
-
-## 📈 Metrics Tracked
-
-### Performance Metrics
-- **Latency**: Total, embedding, retrieval, LLM (p50, p95, p99)
-- **Throughput**: Queries per second
-- **Error Rate**: Failed requests
-
-### Quality Metrics
-- **Retrieval Accuracy**: Precision@K, Recall@K, MRR, NDCG
-- **Answer Quality**: Semantic similarity, keyword coverage
-- **User Satisfaction**: Thumbs up/down, relevance scores
-
-### Cost Metrics
-- **Per-Query Cost**: Broken down by component
-- **Monthly Projections**: Based on query volume
-- **Cost vs. Quality**: Value analysis
-
----
-
-## 🔧 Development
-
-### Add a New Provider
-
-1. Implement provider interface (embedding/LLM/vector store)
-2. Add configuration in `config/providers.py`
-3. Add cost model in `config/cost_models.py`
-4. Add unit tests
-5. Update documentation
-
-### Run in Development Mode
+## 🐳 Docker Services
 
 ```bash
-# Start with auto-reload
-uvicorn api.main:app --reload --log-level debug
+# Start all services
+docker-compose up -d
 
-# Watch logs
-docker-compose logs -f
+# View logs
+docker-compose logs -f api
+
+# Check status
+docker-compose ps
+
+# Stop all
+docker-compose down
+```
+
+**Services**:
+- `postgres` - PostgreSQL 16 with pgvector (port 5434)
+- `ollama` - Local LLM server (port 11434)
+- `api` - FastAPI application (port 8000)
+
+---
+
+## 🔍 Troubleshooting
+
+```bash
+# Restart API with changes
+docker-compose restart api
+
+# View API logs
+docker-compose logs api --tail 50
+
+# Check database
+docker exec -it rag-testing-postgres psql -U testuser -d rag_service
 
 # Reset database
-python scripts/reset_database.py
-```
+docker exec -it rag-testing-postgres psql -U testuser -d rag_service -f /docker-entrypoint-initdb.d/cleanup.sql
+docker exec -it rag-testing-postgres psql -U testuser -d rag_service -f /docker-entrypoint-initdb.d/init.sql
 
----
-
-## 🐛 Troubleshooting
-
-### Elasticsearch won't start
-```bash
-# Increase Docker memory to 4GB+
-# Reduce ES heap size in docker-compose.yml:
-# ES_JAVA_OPTS=-Xms1g -Xmx1g
-```
-
-### Ollama model not found
-```bash
+# Check Ollama models
 docker exec rag-testing-ollama ollama list
 docker exec rag-testing-ollama ollama pull llama3.2
 ```
 
-### Database connection failed
-```bash
-docker-compose restart postgres
-python scripts/init_database.py
-```
+---
 
-See [CONFIGURATION.md](docs/CONFIGURATION.md#troubleshooting) for more.
+## 🎓 Next Steps
+
+1. **Start local**: Test with baseline profile (free)
+2. **Run experiments**: Compare chunk sizes, embedding dimensions
+3. **Add feedback**: Improve retrieval with user ratings
+4. **Test cloud**: Compare local vs cloud LLMs for your use case
+5. **Analyze data**: Use SQL queries to understand tradeoffs
+6. **Optimize**: Pick the best configuration for your needs
+
+**See [TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for detailed testing scenarios and analysis examples.**
 
 ---
 
-## 🎓 Architecture Inspiration
+## 📊 Example Results
 
-This project is based on the proven architecture from [kb-search](../kb-search), a production RAG system with:
-- Multi-cloud support (local, GCP, Azure)
-- Hybrid search (vector + BM25)
-- Source management and tracking
-- Streamlit UI for end-users
+After testing with Python documentation:
 
-**Key Difference**: rag-testing focuses on **testing and comparison** (headless API), while kb-search is designed for **production use** (with UI).
+| Profile | Avg Latency | Avg Cost | Avg Satisfaction | Recommendation |
+|---------|-------------|----------|------------------|----------------|
+| baseline-local | 2.5s | $0 | 7.2/10 | ✅ Start here |
+| cloud-llm | 3.1s | $0.0008 | 8.1/10 | ✅ Best value |
+| full-vertex | 2.8s | $0.012 | 8.3/10 | ⚠️ Marginal improvement |
+| azure-premium | 4.2s | $0.048 | 8.4/10 | ❌ Not worth 60x cost |
 
----
-
-## 📋 Requirements
-
-From the original specification:
-
-- ✅ Command-line URL ingestion with scraping
-- ✅ Multiple vector store options (Elasticsearch, Vertex, Azure)
-- ✅ Multiple embedding dimensions (768, 1536, etc.)
-- ✅ Multiple LLM providers (local, GCP, Azure)
-- ✅ Hybrid search (vector + keyword)
-- ✅ Feedback system (thumbs up/down, scores, comments)
-- ✅ Metrics tracking (latency, cost, accuracy, drift)
-- ✅ Comparative testing framework
-- ✅ FastAPI headless API
-- ✅ `/ingest` endpoint (with depth, max_pages)
-- ✅ `/query` endpoint
-- ✅ PostgreSQL for feedback and metrics
-
----
-
-## 🚀 Roadmap
-
-### Phase 1: Core Infrastructure (Current)
-- [x] Project structure and documentation
-- [ ] FastAPI application skeleton
-- [ ] Docker Compose setup
-- [ ] Database schema and migrations
-- [ ] Abstract provider interfaces
-
-### Phase 2: Local Providers
-- [ ] Local embeddings (sentence-transformers)
-- [ ] Elasticsearch vector store
-- [ ] Ollama LLM integration
-- [ ] Web scraping and ingestion
-- [ ] Hybrid search implementation
-
-### Phase 3: Metrics & Feedback
-- [ ] PostgreSQL metrics storage
-- [ ] Feedback API endpoints
-- [ ] Cost tracking implementation
-- [ ] Drift detection algorithms
-
-### Phase 4: Cloud Providers
-- [ ] GCP Vertex AI (embeddings, LLM, optional vector store)
-- [ ] Azure OpenAI (embeddings, LLM, optional search)
-
-### Phase 5: Comparative Testing
-- [ ] Comparison API endpoint
-- [ ] Benchmark test suites
-- [ ] Automated evaluation
-- [ ] Report generation
+**Conclusion**: Hybrid setup (local embeddings + Gemini Flash) offers best cost/quality tradeoff.
 
 ---
 
@@ -478,17 +454,6 @@ MIT License
 
 ---
 
-## 🤝 Contributing
+**Questions?** See [TESTING_GUIDE.md](docs/TESTING_GUIDE.md) or open an issue.
 
-This is a testing framework project. Contributions welcome!
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Submit a pull request
-
----
-
-**Questions?** See the [documentation](docs/) or open an issue.
-
-**Last Updated**: 2025-11-23
+**Last Updated**: 2025-12-28

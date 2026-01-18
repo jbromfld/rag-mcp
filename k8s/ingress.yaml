@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rag-testing-ingress
+  namespace: rag-testing
+  labels:
+    app: rag-testing-api
+  annotations:
+    # GKE-specific annotations (uncomment if using GKE)
+    # kubernetes.io/ingress.class: "gce"
+    # kubernetes.io/ingress.global-static-ip-name: "rag-testing-ip"
+
+    # NGINX Ingress Controller annotations (uncomment if using NGINX)
+    # kubernetes.io/ingress.class: "nginx"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+    # Rate limiting
+    # nginx.ingress.kubernetes.io/limit-rps: "100"
+
+    # Timeouts
+    # nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+spec:
+  rules:
+  - host: rag-testing.example.com  # Change to your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rag-testing-api
+            port:
+              number: 80
+  # Uncomment for TLS
+  # tls:
+  # - hosts:
+  #   - rag-testing.example.com
+  #   secretName: rag-testing-tls

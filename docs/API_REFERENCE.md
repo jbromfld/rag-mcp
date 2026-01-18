@@ -35,17 +35,7 @@ Scrape and embed documents from a URL.
   "max_pages": 100,
   "url_patterns": ["*/tutorial/*", "*/library/*"],
   "exclude_patterns": ["*/genindex.html", "*/search.html"],
-  "provider_config": {
-    "vector_store": "elasticsearch",
-    "embedding_provider": "local",
-    "embedding_model": "all-mpnet-base-v2",
-    "embedding_dimension": 768
-  },
-  "chunking_config": {
-    "chunk_size": 300,
-    "chunk_overlap": 30,
-    "strategy": "recursive"
-  }
+  "profile": "baseline-local"
 }
 ```
 
@@ -53,42 +43,183 @@ Scrape and embed documents from a URL.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `url` | string | Yes | - | Starting URL to scrape |
+| `url` | string | No* | - | URL to scrape |
+| `content` | string | No* | - | Direct text content |
+| `title` | string | No | - | Document title |
+| `metadata` | object | No | `{}` | Additional metadata |
+| `profile` | string | Yes | - | Configuration profile name |
 | `depth` | integer | No | 1 | Maximum crawl depth (1-5) |
-| `max_pages` | integer | No | 50 | Maximum pages to scrape |
-| `url_patterns` | array[string] | No | `["*"]` | URL patterns to include (glob syntax) |
-| `exclude_patterns` | array[string] | No | `[]` | URL patterns to exclude |
-| `provider_config` | object | Yes | - | Provider configuration |
-| `chunking_config` | object | No | defaults | Document chunking configuration |
+| `max_pages` | integer | No | 50 | Maximum pages to scrape (1-500) |
+| `url_patterns` | array[string] | No | `null` | URL patterns to include (glob syntax) |
+| `exclude_patterns` | array[string] | No | `null` | URL patterns to exclude |
 
-**Provider Config Object**:
+*Either `url` or `content` must be provided, but not both.
 
-| Field | Type | Required | Options | Description |
-|-------|------|----------|---------|-------------|
-| `vector_store` | string | Yes | `elasticsearch`, `vertex`, `azure` | Vector store provider |
-| `embedding_provider` | string | Yes | `local`, `vertex`, `azure` | Embedding provider |
-| `embedding_model` | string | No | provider-specific | Model identifier |
-| `embedding_dimension` | integer | No | provider-specific | Embedding dimension (768, 1536, etc.) |
+---
+
+### Ingest Direct Content
+
+Ingest text content directly without web scraping.
+
+**Endpoint**: `POST /ingest`
+
+**Request Body**:
+```json
+{
+  "content": "Your documentation text here. Can be multiple paragraphs and include code examples...",
+  "title": "API Documentation",
+  "profile": "default",
+  "metadata": {
+    "source": "local",
+    "author": "team",
+    "version": "1.0",
+    "created_at": "2026-01-18"
+  }
+}
+```
+
+**Example: Ingesting from file with curl**:
+```bash
+# Single file
+curl -X POST http://localhost:8000/ingest \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"content\": \"$(cat documentation.md | jq -Rs .)\",
+    \"title\": \"documentation.md\",
+    \"profile\": \"default\"
+  }"
+```
+
+**Example: Batch ingestion script**:
+```bash
+#!/bin/bash
+# Ingest all markdown files in docs/ directory
+
+for file in docs/*.md; do
+  echo "Ingesting: $file"
+  curl -X POST http://localhost:8000/ingest \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"content\": \"$(cat "$file" | jq -Rs .)\",
+      \"title\": \"$(basename "$file")\",
+      \"profile\": \"default\",
+      \"metadata\": {
+        \"source\": \"local\",
+        \"file_path\": \"$file\"
+      }
+    }"
+  echo ""
+done
+
+echo "Batch ingestion complete!"
+```
+
+**Example: Python script**:
+```python
+import requests
+from pathlib import Path
+
+API_URL = "http://localhost:8000"
+
+def ingest_text(content: str, title: str, metadata: dict = None):
+    """Ingest text content directly."""
+    response = requests.post(f"{API_URL}/ingest", json={
+        "content": content,
+        "title": title,
+        "profile": "default",
+        "metadata": metadata or {}
+    })
+    return response.json()
+
+def ingest_file(file_path: str):
+    """Ingest content from a file."""
+    path = Path(file_path)
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    return ingest_text(
+        content=content,
+        title=path.name,
+        metadata={
+            "source": "local",
+            "file_path": str(path),
+            "file_size": path.stat().st_size
+        }
+    )
+
+def ingest_directory(dir_path: str, pattern: str = "*.md"):
+    """Ingest all files matching pattern in directory."""
+    directory = Path(dir_path)
+    results = []
+    
+    for file_path in directory.glob(pattern):
+        if file_path.is_file():
+            print(f"Ingesting: {file_path}")
+            result = ingest_file(str(file_path))
+            results.append(result)
+            print(f"  ✓ {result['chunks_created']} chunks, {result['embeddings_generated']} embeddings")
+    
+    return results
+
+# Usage examples
+if __name__ == "__main__":
+    # Ingest single file
+    result = ingest_file("docs/README.md")
+    print(f"Job ID: {result['job_id']}")
+    
+    # Ingest all markdown files in directory
+    results = ingest_directory("docs/", "*.md")
+    print(f"Ingested {len(results)} files")
+    
+    # Ingest direct text
+    result = ingest_text(
+        content="This is custom documentation about our API...",
+        title="Custom Documentation",
+        metadata={"author": "team", "version": "1.0"}
+    )
+```
+
+---
+
+### Ingest Response
 
 **Response**:
 ```json
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "started",
-  "url": "https://docs.python.org/3/",
-  "config": {
-    "depth": 3,
-    "max_pages": 100,
-    "provider": "elasticsearch-local-768"
-  },
-  "created_at": "2025-11-23T10:00:00Z"
+  "success": true,
+  "pages_scraped": 1,
+  "chunks_created": 12,
+  "embeddings_generated": 12,
+  "processing_time_ms": 245.8,
+  "profile": "default"
 }
 ```
 
+**Response Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `job_id` | string (UUID) | Unique job identifier |
+| `success` | boolean | Whether ingestion succeeded |
+| `pages_scraped` | integer | Number of pages processed |
+| `chunks_created` | integer | Number of text chunks created |
+| `embeddings_generated` | integer | Number of embeddings generated |
+| `processing_time_ms` | float | Total processing time in milliseconds |
+| `profile` | string | Profile used for ingestion |
+
 **Status Codes**:
-- `202 Accepted`: Job created and started
-- `400 Bad Request`: Invalid parameters
-- `500 Internal Server Error`: Server error
+- `200 OK`: Ingestion completed successfully
+- `400 Bad Request`: Invalid parameters (missing url/content, invalid profile)
+- `404 Not Found`: Profile not found
+- `500 Internal Server Error`: Processing error
+
+**Error Response**:
+```json
+{
+  "detail": "No chunks created (content may be too short)"
+}
+```
 
 ---
 
