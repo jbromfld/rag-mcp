@@ -7,10 +7,6 @@
 			],
 			"description": "A set of tools that you can use to search the KB",
 			"type": "stdio"
-		},
-		"ci-knowledge-mcp": {
-			"url": "http://localhost:8080/mcp",
-			"type": "sse"
 		}
 	},
 	"inputs": []

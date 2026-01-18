@@ -44,6 +44,7 @@ class LLMProvider(str, Enum):
     BEDROCK = "bedrock"
     CLAUDE = "claude"
     COPILOT = "copilot"
+    MCP = "mcp"
 
 
 class ChunkStrategy(str, Enum):

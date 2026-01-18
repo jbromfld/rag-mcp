@@ -182,8 +182,12 @@ async def get_profile(profile_name: str) -> ConfigurationProfile:
         HTTPException: If profile not found
     """
     try:
-        return await app_state.config_loader.get_profile_by_name(profile_name)
+        logger.debug(f"Looking up profile: {profile_name}")
+        profile = await app_state.config_loader.get_profile_by_name(profile_name)
+        logger.debug(f"Profile found: {profile.profile_name}")
+        return profile
     except ValueError as e:
+        logger.error(f"Profile lookup failed: {e}")
         raise HTTPException(
             status_code=404, detail=f"Profile '{profile_name}' not found")
 

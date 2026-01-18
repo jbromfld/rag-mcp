@@ -1,66 +1,75 @@
 # Core Web Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+fastapi==0.115.5  # Latest stable, Python 3.11+ compatible
+uvicorn[standard]==0.32.1  # Updated for better async performance
+pydantic==2.10.3  # Latest v2, significant performance improvements
+pydantic-settings==2.6.1  # Matches pydantic version
 
 # Database
-asyncpg==0.29.0
+asyncpg==0.30.0  # Latest, Python 3.11+ compatible
+psycopg2-binary==2.9.7  # Latest with better performance and security
 
 # Vector Search (pgvector)
-pgvector==0.2.4
+pgvector==0.3.6  # Latest with improved performance
 
 # Embeddings
-numpy==1.26.3
-sentence-transformers==2.7.0
-torch==2.1.1
-transformers==4.40.0
-huggingface-hub==0.23.0
+numpy>=1.26.0,<2.0.0  # Python 3.11+ optimized, avoid 2.x for now
+sentence-transformers==3.3.1  # Latest, better model support
+torch>=2.5.0,<2.6.0  # Latest stable, CUDA 12.x support
+transformers==4.47.1  # Latest with new model architectures
+huggingface-hub==0.26.5  # Latest with improved caching
 
 # LLM Providers
 # Ollama (via HTTP client)
-httpx==0.25.2
-aiohttp==3.9.1
+httpx==0.28.1  # Latest with HTTP/2 improvements
+aiohttp==3.11.11  # Security updates, Python 3.11+ optimized
 
 # OpenAI (Direct API)
-openai==1.54.0
+openai==1.57.4  # Latest with structured outputs improvements
 
 # Anthropic Claude
-anthropic==0.39.0
+anthropic==0.42.0  # Latest with prompt caching, tool use improvements
 
 # AWS Bedrock
-boto3==1.35.0
+boto3==1.35.94  # Latest with newest model support (Claude 3.7, Nova)
+botocore==1.35.94  # Should match boto3 version
 
 # GCP Vertex AI (optional - uncomment if needed)
-# google-cloud-aiplatform==1.38.1
-# google-auth==2.25.2
+# google-cloud-aiplatform==1.76.0  # Latest with Gemini 2.0 support
+# google-auth==2.37.0  # Security updates
 
 # Azure OpenAI (uses openai package above)
-# azure-identity==1.15.0
+# azure-identity==1.19.0  # Latest with security improvements
 
 # Web Scraping & Document Processing
-beautifulsoup4==4.12.2
-lxml==4.9.3
-aiofiles==23.2.1
+beautifulsoup4==4.12.3  # Latest minor update
+lxml==5.3.0  # Major version update, Python 3.11+ optimized
+aiofiles==24.1.0  # Latest stable
 
-# Text Processing (minimal)
-tiktoken==0.5.2
+# Text Processing
+tiktoken==0.8.0  # Latest with more tokenizers
 
 # Configuration
-python-dotenv==1.0.0
+python-dotenv==1.0.1  # Latest stable
 
 # Utilities
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0  # Latest with timezone improvements
 
-# Monitoring & Logging (using standard logging for now)
+# Monitoring & Logging
+# structlog==24.4.0  # Consider adding for better structured logging
+# rich==13.9.4  # Consider adding for beautiful console output
 
-# Testing (optional, for development - not installed in Docker)
-# pytest==7.4.3
-# pytest-asyncio==0.21.1
-# pytest-cov==4.1.0
+# Development Dependencies (optional)
+# Testing
+# pytest==8.3.4  # Latest stable
+# pytest-asyncio==0.24.0  # Updated for pytest 8.x
+# pytest-cov==6.0.0  # Latest coverage support
+# httpx-mock==0.17.3  # For mocking httpx requests
 
-# Code Quality (optional, for development - not installed in Docker)
-# black==23.12.0
-# flake8==6.1.0
-# mypy==1.7.1
-# isort==5.13.2
+# Code Quality
+# ruff==0.8.4  # Consider replacing black+flake8+isort with ruff (faster)
+# mypy==1.13.0  # Latest with better type inference
+# pre-commit==4.0.1  # Automate code quality checks
+
+# Security
+# bandit==1.8.0  # Security linting
+# safety==3.2.11  # Check for known vulnerabilities

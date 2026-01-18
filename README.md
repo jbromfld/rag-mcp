@@ -18,6 +18,8 @@ This is a **testing and experimentation pipeline** for RAG systems. Use it to an
 
 ## 🚀 Quick Start (5 minutes)
 
+### Standalone Testing Mode
+
 ```bash
 # 1. Start infrastructure
 docker-compose up -d
@@ -40,6 +42,29 @@ python cli.py metrics
 
 **That's it!** You're now testing with the baseline profile (local pgvector + local embeddings + Ollama).
 
+### MCP Server Mode
+
+This RAG service can also be used as a **Model Context Protocol (MCP) server** where Copilot or other MCP clients handle text generation:
+
+```bash
+# 1. Start RAG service
+docker-compose up -d
+
+# 2. Ingest documentation (uses 'default' profile)
+curl -X POST http://localhost:8000/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://docs.python.org/3/", "depth": 2, "profile": "default"}'
+
+# 3. Query returns raw chunks (no LLM generation)
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is asyncio?", "retrieve_only": true, "profile": "default"}'
+
+# 4. MCP client (e.g., Copilot) uses chunks to generate answer
+```
+
+**Key difference**: The `default` profile uses the `mcp` provider which skips LLM generation. The RAG service only does retrieval, and the MCP client synthesizes the final answer.
+
 ---
 
 ## 📊 Core Testing Features
@@ -49,7 +74,8 @@ python cli.py metrics
 Test different RAG setups without changing code:
 
 ```bash
-# Create profiles with different configurations
+# Available profiles:
+- default: MCP mode - retrieval only, external generation (FREE)
 - baseline-local: Local embeddings (768-dim) + Ollama (FREE)
 - high-dim-local: Local embeddings (1536-dim) + Ollama (FREE)
 - cloud-llm: Local embeddings + Gemini Flash (~$0.001/query)
@@ -232,7 +258,50 @@ rag-mcp/
 
 ---
 
-## 🔧 CLI Commands
+## � MCP Integration
+
+### Using as an MCP Server
+
+The RAG service exposes an API that can be integrated with Model Context Protocol (MCP) servers:
+
+**Profile**: Use `default` profile which uses the `mcp` provider
+- ✅ Supports ingestion (creates embeddings)
+- ✅ Supports retrieval (hybrid search with boosting)
+- ❌ Skips LLM generation (external client handles this)
+
+**Typical flow**:
+1. **Ingest**: Use `/ingest` endpoint with `profile: "default"`
+2. **Query**: Use `/query` endpoint with `retrieve_only: true` and `profile: "default"`
+3. **Response**: Returns raw chunks with citations and scores
+4. **Generation**: MCP client (e.g., Copilot) synthesizes the answer
+
+**Example MCP server integration**:
+```python
+# In your MCP server (e.g., kbsearch-mcp-server)
+async def search_knowledge_base(query: str, top_k: int = 5):
+    response = await http_client.post(
+        "http://localhost:8000/query",
+        json={
+            "query": query,
+            "top_k": top_k,
+            "retrieve_only": True,  # Skip LLM generation
+            "profile": "default"     # Use MCP profile
+        }
+    )
+    chunks = response.json()["chunks"]
+    # Return chunks to MCP client for generation
+    return chunks
+```
+
+**Benefits**:
+- RAG service focuses on retrieval quality
+- MCP client (Copilot) does generation with full context
+- Separation of concerns: retrieval vs generation
+- Zero LLM cost for RAG service
+
+---
+
+## �🔧 CLI Commands
 
 ```bash
 # Health check
