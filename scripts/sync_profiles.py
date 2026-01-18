@@ -23,7 +23,7 @@ async def sync_profiles():
     conn = await asyncpg.connect(
         host=os.getenv('POSTGRES_HOST', 'localhost'),
         port=int(os.getenv('POSTGRES_EXTERNAL_PORT', '5434')),
-        database=os.getenv('POSTGRES_DB', 'rag_testing'),
+        database=os.getenv('POSTGRES_DB', 'rag_service'),
         user=os.getenv('POSTGRES_USER', 'testuser'),
         password=os.getenv('POSTGRES_PASSWORD', 'testpass'),
     )

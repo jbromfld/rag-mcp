@@ -50,7 +50,7 @@ def main():
     db_config = {
         'host': os.getenv('POSTGRES_SCRIPT_HOST', 'localhost'),
         'port': int(os.getenv('POSTGRES_SCRIPT_PORT', '5432')),
-        'database': os.getenv('POSTGRES_DB', 'rag_testing'),
+        'database': os.getenv('POSTGRES_DB', 'rag_service'),
         'user': os.getenv('POSTGRES_USER', 'testuser'),
         'password': os.getenv('POSTGRES_PASSWORD', 'testpass')
     }

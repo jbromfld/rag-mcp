@@ -3,8 +3,8 @@
 -- PostgreSQL with pgvector extension
 -- ============================================
 
--- psql -U testuser -d rag_testing < db/cleanup.sql
--- psql -U testuser -d rag_testing < db/init.sql
+-- psql -U testuser -d rag_service < db/cleanup.sql
+-- psql -U testuser -d rag_service < db/init.sql
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -433,4 +433,4 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO testuser;
 -- ============================================
 
 -- Set default configuration
-COMMENT ON DATABASE rag_testing IS 'RAG Testing Pipeline - Vector search with metadata tracking and comprehensive metrics';
+COMMENT ON DATABASE rag_service IS 'RAG Testing Pipeline - Vector search with metadata tracking and comprehensive metrics';

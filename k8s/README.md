@@ -147,7 +147,7 @@ kubectl logs -n rag-testing -l app=ollama -f
 
 ```bash
 # PostgreSQL
-kubectl exec -it -n rag-testing deployment/postgres -- psql -U testuser -d rag_testing
+kubectl exec -it -n rag-testing deployment/postgres -- psql -U testuser -d rag_service
 
 # API
 kubectl exec -it -n rag-testing deployment/rag-testing-api -- /bin/bash
@@ -230,11 +230,11 @@ kubectl apply -f https://raw.githubusercontent.com/Azure/application-gateway-kub
 ```bash
 # Create backup
 kubectl exec -n rag-testing deployment/postgres -- \
-  pg_dump -U testuser rag_testing > backup.sql
+  pg_dump -U testuser rag_service > backup.sql
 
 # Restore backup
 kubectl exec -i -n rag-testing deployment/postgres -- \
-  psql -U testuser rag_testing < backup.sql
+  psql -U testuser rag_service < backup.sql
 ```
 
 ## Troubleshooting

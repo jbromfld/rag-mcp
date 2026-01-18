@@ -145,7 +145,7 @@ Every query tracks:
 python cli.py metrics
 
 # Database queries for deeper analysis
-docker exec rag-testing-postgres psql -U testuser -d rag_testing
+docker exec rag-testing-postgres psql -U testuser -d rag_service
 ```
 
 ---
@@ -407,11 +407,11 @@ docker-compose restart api
 docker-compose logs api --tail 50
 
 # Check database
-docker exec -it rag-testing-postgres psql -U testuser -d rag_testing
+docker exec -it rag-testing-postgres psql -U testuser -d rag_service
 
 # Reset database
-docker exec -it rag-testing-postgres psql -U testuser -d rag_testing -f /docker-entrypoint-initdb.d/cleanup.sql
-docker exec -it rag-testing-postgres psql -U testuser -d rag_testing -f /docker-entrypoint-initdb.d/init.sql
+docker exec -it rag-testing-postgres psql -U testuser -d rag_service -f /docker-entrypoint-initdb.d/cleanup.sql
+docker exec -it rag-testing-postgres psql -U testuser -d rag_service -f /docker-entrypoint-initdb.d/init.sql
 
 # Check Ollama models
 docker exec rag-testing-ollama ollama list
