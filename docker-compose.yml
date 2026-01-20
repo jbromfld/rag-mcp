@@ -1,6 +1,6 @@
 services:
   # RAG Testing API
-  api:
+  rag-service:
     build:
       context: .
       dockerfile: Dockerfile
