@@ -1,7 +1,7 @@
 """
-RAG Testing Pipeline - Simple CLI Tool
+RAG MCP Server - CLI Tool
 
-A simple command-line interface for testing the RAG Testing Pipeline API.
+Command-line interface for managing the RAG ingestion pipeline and MCP server.
 Requires: pip install requests
 """
 
@@ -35,7 +35,7 @@ def ingest(url):
     """Ingest a single document from URL."""
     resp = requests.post(
         f"{BASE_URL}/ingest",
-        json={"url": url, "profile": "baseline-local"}
+        json={"url": url, "profile": "default"}
     )
     pretty_print(resp)
 
@@ -48,13 +48,13 @@ def ringest(url, depth=3, max_pages=50):
             "url": url,
             "depth": depth,
             "max_pages": max_pages,
-            "profile": "baseline-local"
+            "profile": "default"
         }
     )
     pretty_print(resp)
 
 
-def query(text, top_k=5, profile="baseline-local"):
+def query(text, top_k=5, profile="default"):
     """Query the knowledge base."""
     resp = requests.post(
         f"{BASE_URL}/query",
@@ -88,66 +88,6 @@ def profiles():
     pretty_print(resp)
 
 
-def sync_profiles():
-    """Sync profile models from .env to database."""
-    import subprocess
-    result = subprocess.run(["python", "scripts/sync_profiles.py"], capture_output=True, text=True)
-    print(result.stdout)
-    if result.stderr:
-        print(result.stderr)
-
-
-def report():
-    """Show comparison report."""
-    resp = requests.get(f"{BASE_URL}/report")
-    if resp.status_code != 200:
-        pretty_print(resp)
-        return
-
-    data = resp.json()
-    print("\n" + "="*80)
-    print("CONFIGURATION COMPARISON REPORT".center(80))
-    print("="*80 + "\n")
-
-    if data["total_profiles"] == 0:
-        print("No profiles with queries found. Run some queries first!")
-        return
-
-    for p in data["profiles"]:
-        cfg = p["config"]
-        perf = p["performance"]
-        fb = p["feedback"]
-
-        print(f"Profile: {p['profile']} (v{p['version']})")
-        print("-" * 80)
-
-        # Configuration
-        print(f"  Config: chunk_size={cfg['chunk_size']}, embed_dim={cfg['embedding_dim']}, top_k={cfg['top_k']}")
-        print(f"          embedding={cfg['embedding_model']}, llm={cfg['llm_model']}")
-        print(f"          hybrid_search={'yes' if cfg['hybrid_search'] else 'no'}")
-
-        # Performance
-        print(f"\n  Performance: {perf['total_queries']} queries")
-        if perf['avg_total_ms']:
-            print(f"    Latency: {perf['avg_total_ms']:.0f}ms total = {perf['avg_retrieval_ms']:.0f}ms retrieval + {perf['avg_llm_ms']:.0f}ms LLM")
-        if perf['avg_cost_usd'] is not None:
-            cost_per_1k = perf['avg_cost_usd'] * 1000
-            print(f"    Cost: ${perf['avg_cost_usd']:.6f}/query (${cost_per_1k:.3f}/1K queries)")
-        if perf['avg_relevance_score']:
-            print(f"    Quality: {perf['avg_relevance_score']:.3f} relevance, {perf['avg_chunks_retrieved']:.1f} chunks avg")
-
-        # Feedback
-        if fb['total_feedback'] > 0:
-            print(f"\n  User Satisfaction: {fb['avg_satisfaction']:.1f}/10 average ({fb['total_feedback']} ratings)")
-            sat_pct = fb['satisfaction_rate'] * 100
-            print(f"                     {fb['satisfied_count']}/{fb['total_feedback']} satisfied (≥7) = {sat_pct:.0f}%")
-        else:
-            print(f"\n  User Satisfaction: No feedback yet")
-
-        print("\n")
-
-    print("="*80)
-
 
 def main():
     """Main CLI entry point."""
@@ -157,17 +97,16 @@ def main():
         print("  health                          - Check API health")
         print("  ingest <url>                    - Ingest single page")
         print("  ringest <url> [depth] [max]     - Recursive crawl (default: depth=3, max=50)")
-        print("  query <text> [--profile <name>] - Query knowledge base")
+        print("  query <text> [--profile <name>] - Query knowledge base (default: default)")
         print("  feedback <id> <score> [comment] - Submit feedback (score 0-10)")
         print("  metrics                         - View metrics")
         print("  profiles                        - List profiles")
-        print("  sync                            - Sync profile models from .env")
-        print("  report                          - Compare all profiles")
         print("\nExamples:")
         print("  python cli.py health")
         print("  python cli.py ingest https://example.com")
-        print("  python cli.py ringest https://docs.python.org/3/ 2 20")
-        print('  python cli.py query "How do I use Python?"')
+        print("  python cli.py ringest https://docs.example.com 2 20")
+        print('  python cli.py query "How do I configure X?"')
+        print('  python cli.py query "How do I configure X?" --profile copilot-gpt4o')
         print("  python cli.py feedback abc-123 8 'Very helpful!'")
         print("  python cli.py metrics")
         return
@@ -193,11 +132,12 @@ def main():
             if len(sys.argv) < 3:
                 print("Usage: query <text> [--profile <name>]")
                 return
-            profile = "baseline-local"
+            profile = "default"
             if "--profile" in sys.argv:
                 idx = sys.argv.index("--profile")
                 if idx + 1 < len(sys.argv):
                     profile = sys.argv[idx + 1]
+
             query(sys.argv[2], profile=profile)
         elif cmd == "feedback":
             if len(sys.argv) < 4:
@@ -209,10 +149,6 @@ def main():
             metrics()
         elif cmd == "profiles":
             profiles()
-        elif cmd == "sync":
-            sync_profiles()
-        elif cmd == "report":
-            report()
         else:
             print(f"Unknown command: {cmd}")
             print("Run without arguments for help")
