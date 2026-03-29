@@ -82,3 +82,5 @@ temp/
 docker-compose-local.yml
 
 .cursor/
+node_modules/
+*.visx
