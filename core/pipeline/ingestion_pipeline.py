@@ -128,7 +128,16 @@ class IngestionPipeline:
                     error_message="No documents scraped",
                 )
 
-            # Step 2: Process all documents
+            # Step 2: Delete existing chunks for these URLs (to prevent duplicates)
+            for doc in documents:
+                if doc.url and doc.url != "direct-content":
+                    # Delete any existing chunks from this URL for this profile
+                    await self.vector_store.delete_by_filter({
+                        "url": doc.url,
+                        "profile_id": str(self.profile.profile_id)
+                    })
+
+            # Step 3: Process all documents
             all_chunks = []
             for doc in documents:
                 # Add profile to metadata
@@ -152,11 +161,11 @@ class IngestionPipeline:
                     error_message="No chunks created (content may be too short)",
                 )
 
-            # Step 3: Generate embeddings
+            # Step 4: Generate embeddings
             texts = [chunk.content for chunk in all_chunks]
             embeddings = await self.embedding_provider.embed_batch(texts)
 
-            # Step 4: Create Chunk objects for vector store
+            # Step 5: Create Chunk objects for vector store
             chunks = []
             for chunk_result, embedding in zip(all_chunks, embeddings):
                 chunk = Chunk(
@@ -168,7 +177,7 @@ class IngestionPipeline:
                 )
                 chunks.append(chunk)
 
-            # Step 5: Insert into vector store
+            # Step 6: Insert into vector store
             await self.vector_store.insert_chunks(chunks)
 
             processing_time = (time.time() - start_time) * 1000

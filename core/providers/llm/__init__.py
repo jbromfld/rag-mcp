@@ -1,5 +1,6 @@
 """LLM provider implementations."""
 
-from .ollama import OllamaProvider
+from .copilot import CopilotProvider
+from .mcp import MCPProvider
 
-__all__ = ["OllamaProvider"]
+__all__ = ["CopilotProvider", "MCPProvider"]

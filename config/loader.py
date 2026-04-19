@@ -157,110 +157,32 @@ class ConfigLoader:
         """
         s = self.settings
 
-        # Vector store config
+        # Vector store config (pgvector only)
         vector_store = VectorStoreConfig(
-            provider=s.vector_store_provider,
-            url=s.database_url if s.vector_store_provider == "postgresql" else s.elasticsearch_url,
-            index_name=s.elasticsearch_index,
+            provider="postgresql",
+            url=s.database_url,
             dimension=s.pgvector_dimension,
             hnsw_m=s.pgvector_hnsw_m,
             hnsw_ef_construction=s.pgvector_hnsw_ef_construction,
-            username=s.elasticsearch_user,
-            password=s.elasticsearch_password,
         )
 
-        # Embedding config
-        if s.embedding_provider == "local":
-            embedding = EmbeddingProviderConfig(
-                provider="local",
-                model=s.local_embedding_model,
-                dimension=s.local_embedding_dimension,
-                batch_size=s.local_embedding_batch_size,
-                device=s.local_embedding_device,
-            )
-        elif s.embedding_provider == "vertex":
-            embedding = EmbeddingProviderConfig(
-                provider="vertex",
-                model=s.gcp_embedding_model,
-                dimension=s.vertex_embedding_dimension,
-                project_id=s.gcp_project_id,
-                location=s.gcp_location,
-            )
-        elif s.embedding_provider == "azure":
-            embedding = EmbeddingProviderConfig(
-                provider="azure",
-                model=s.azure_embedding_deployment,
-                dimension=s.azure_embedding_dimension,
-                endpoint=s.azure_openai_endpoint,
-                api_key=s.azure_openai_api_key,
-                api_version=s.azure_openai_api_version,
-                deployment_name=s.azure_embedding_deployment,
-            )
-        else:
-            raise ValueError(f"Unknown embedding provider: {s.embedding_provider}")
+        # Embedding config (local sentence-transformers only)
+        embedding = EmbeddingProviderConfig(
+            provider="local",
+            model=s.local_embedding_model,
+            dimension=s.local_embedding_dimension,
+            batch_size=s.local_embedding_batch_size,
+            device=s.local_embedding_device,
+        )
 
-        # LLM config
-        if s.llm_provider == "ollama":
-            llm = LLMProviderConfig(
-                provider="ollama",
-                model=s.ollama_model,
-                temperature=s.ollama_temperature,
-                max_tokens=s.ollama_max_tokens,
-                base_url=None,  # Don't store URL - read from ENV at runtime
-            )
-        elif s.llm_provider == "vertex":
-            llm = LLMProviderConfig(
-                provider="vertex",
-                model=s.vertex_llm_model,
-                temperature=s.vertex_temperature,
-                max_tokens=s.vertex_max_tokens,
-                project_id=s.gcp_project_id,
-                location=s.gcp_location,
-            )
-        elif s.llm_provider == "azure":
-            llm = LLMProviderConfig(
-                provider="azure",
-                model=s.azure_llm_deployment,
-                temperature=s.azure_temperature,
-                max_tokens=s.azure_max_tokens,
-                endpoint=s.azure_openai_endpoint,
-                api_key=s.azure_openai_api_key,
-                api_version=s.azure_openai_api_version,
-                deployment_name=s.azure_llm_deployment,
-            )
-        elif s.llm_provider == "openai":
-            llm = LLMProviderConfig(
-                provider="openai",
-                model=s.openai_model,
-                temperature=s.openai_temperature,
-                max_tokens=s.openai_max_tokens,
-                api_key=s.openai_api_key,
-            )
-        elif s.llm_provider == "bedrock":
-            llm = LLMProviderConfig(
-                provider="bedrock",
-                model=s.bedrock_model,
-                temperature=s.bedrock_temperature,
-                max_tokens=s.bedrock_max_tokens,
-            )
-        elif s.llm_provider == "claude":
-            llm = LLMProviderConfig(
-                provider="claude",
-                model=s.claude_model,
-                temperature=s.claude_temperature,
-                max_tokens=s.claude_max_tokens,
-                api_key=s.anthropic_api_key,
-            )
-        elif s.llm_provider == "copilot":
-            llm = LLMProviderConfig(
-                provider="copilot",
-                model=s.copilot_model,
-                temperature=s.copilot_temperature,
-                max_tokens=s.copilot_max_tokens,
-                api_key=s.copilot_api_key,
-            )
-        else:
-            raise ValueError(f"Unknown LLM provider: {s.llm_provider}")
+        # LLM config (copilot or mcp passthrough)
+        llm = LLMProviderConfig(
+            provider="copilot",
+            model=s.copilot_model,
+            temperature=s.copilot_temperature,
+            max_tokens=s.copilot_max_tokens,
+            api_key=s.copilot_api_key,
+        )
 
         # Provider config
         provider_config = ProviderConfig(

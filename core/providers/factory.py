@@ -40,16 +40,6 @@ class ProviderFactory:
 
             return LocalEmbeddingProvider(config)
 
-        elif config.provider == "vertex":
-            from .embeddings.vertex import VertexEmbeddingProvider
-
-            return VertexEmbeddingProvider(config)
-
-        elif config.provider == "azure":
-            from .embeddings.azure import AzureEmbeddingProvider
-
-            return AzureEmbeddingProvider(config)
-
         else:
             raise ValueError(f"Unknown embedding provider: {config.provider}")
 
@@ -62,37 +52,7 @@ class ProviderFactory:
         Returns:
             LLMProvider instance
         """
-        if config.provider == "ollama":
-            from .llm.ollama import OllamaProvider
-
-            return OllamaProvider(config)
-
-        elif config.provider == "vertex":
-            from .llm.vertex import VertexLLMProvider
-
-            return VertexLLMProvider(config)
-
-        elif config.provider == "azure":
-            from .llm.azure import AzureLLMProvider
-
-            return AzureLLMProvider(config)
-
-        elif config.provider == "openai":
-            from .llm.openai import OpenAIProvider
-
-            return OpenAIProvider(config)
-
-        elif config.provider == "bedrock":
-            from .llm.bedrock import BedrockProvider
-
-            return BedrockProvider(config)
-
-        elif config.provider == "claude":
-            from .llm.claude import ClaudeProvider
-
-            return ClaudeProvider(config)
-
-        elif config.provider == "copilot":
+        if config.provider == "copilot":
             from .llm.copilot import CopilotProvider
 
             return CopilotProvider(config)
@@ -121,21 +81,6 @@ class ProviderFactory:
             from .vector_store.pgvector import PgVectorStore
 
             return PgVectorStore(config, self.db_pool)
-
-        elif config.provider == "elasticsearch":
-            from .vector_store.elasticsearch import ElasticsearchStore
-
-            return ElasticsearchStore(config)
-
-        elif config.provider == "vertex":
-            from .vector_store.vertex import VertexVectorStore
-
-            return VertexVectorStore(config)
-
-        elif config.provider == "azure":
-            from .vector_store.azure import AzureVectorStore
-
-            return AzureVectorStore(config)
 
         else:
             raise ValueError(f"Unknown vector store provider: {config.provider}")

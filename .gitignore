@@ -80,4 +80,7 @@ tmp/
 temp/
 *.tmp
 docker-compose-local.yml
-docker-compose-local.yml
+
+.cursor/
+node_modules/
+*.visx
